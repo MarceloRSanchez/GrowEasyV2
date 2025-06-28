@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,6 +19,7 @@ import { ErrorToast } from '@/components/ui/ErrorToast';
 import { Leaf, Mail, Lock } from 'lucide-react-native';
 
 export default function AuthScreen() {
+  const { t } = useTranslation();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,7 +29,7 @@ export default function AuthScreen() {
 
   const handleAuth = async () => {
     if (!email || !password) {
-      setErrorMessage('Please fill in all fields');
+      setErrorMessage(t('auth.fillAllFields'));
       return;
     }
 
@@ -36,7 +38,7 @@ export default function AuthScreen() {
     try {
       if (isSignUp) {
         await signUp(email, password);
-        Alert.alert('Success', 'Account created! Please check your email to verify your account.');
+        Alert.alert(t('auth.success'), t('auth.accountCreated'));
       } else {
         await signIn(email, password);
         router.replace('/(tabs)');
@@ -44,10 +46,10 @@ export default function AuthScreen() {
     } catch (error: any) {
       // Handle specific error cases
       if (isSignUp && error.message?.includes('User already registered')) {
-        setErrorMessage('An account with this email already exists. Please sign in instead.');
+        setErrorMessage(t('auth.existingAccount'));
         setIsSignUp(false);
       } else {
-        setErrorMessage(error.message || 'An unexpected error occurred');
+        setErrorMessage(error.message || t('auth.unexpectedError'));
       }
     } finally {
       setLoading(false);
@@ -80,9 +82,9 @@ export default function AuthScreen() {
             <View style={styles.logoContainer}>
               <Leaf size={48} color={Colors.primary} />
             </View>
-            <Text style={styles.title}>GrowEasy</Text>
+            <Text style={styles.title}>{t('auth.title')}</Text>
             <Text style={styles.subtitle}>
-              {isSignUp ? 'Create your account' : 'Welcome back'}
+              {isSignUp ? t('auth.createYourAccount') : t('auth.welcomeBack')}
             </Text>
           </View>
 
@@ -92,7 +94,7 @@ export default function AuthScreen() {
               <Mail size={20} color={Colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Email"
+                placeholder={t('auth.email')}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -105,7 +107,7 @@ export default function AuthScreen() {
               <Lock size={20} color={Colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Password"
+                placeholder={t('auth.password')}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -114,31 +116,23 @@ export default function AuthScreen() {
             </View>
 
             <Button
-              title={isSignUp ? 'Create Account' : 'Sign In'}
+              title={isSignUp ? t('auth.createAccount') : t('auth.signIn')}
               onPress={handleAuth}
               loading={loading}
               size="large"
               style={styles.authButton}
             />
 
-            <Button
-              title="Try Demo Account"
-              onPress={handleDemoLogin}
-              variant="outline"
-              loading={loading}
-              size="large"
-              style={styles.demoButton}
-            />
           </View>
 
           {/* Toggle */}
           <View style={styles.toggle}>
             <Text style={styles.toggleText}>
-              {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+              {isSignUp ? t('auth.alreadyHaveAccount') : t('auth.dontHaveAccount')}
             </Text>
             <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
               <Text style={styles.toggleLink}>
-                {isSignUp ? 'Sign In' : 'Sign Up'}
+                {isSignUp ? t('auth.signIn') : t('auth.signUp')}
               </Text>
             </TouchableOpacity>
           </View>

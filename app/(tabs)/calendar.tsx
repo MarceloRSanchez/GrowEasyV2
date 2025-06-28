@@ -1,20 +1,18 @@
-import React, { useRef, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, DateData } from 'react-native-calendars';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Colors, Typography, Spacing } from '@/constants/Colors';
-import { DayTasksSheet } from '@/components/calendar/DayTasksSheet';
+import { DayTasksCard } from '@/components/calendar/DayTasksCard';
 import { CareReminder } from '@/types/Plant';
 
 // Temporary mock data
 const mockTasks: { [date: string]: CareReminder[] } = {
-  '2025-03-20': [
+  '2025-06-20': [
     {
       id: '1',
       userPlantId: '1',
       type: 'watering',
-      dueDate: '2025-03-20',
+      dueDate: '2025-06-20',
       completed: false,
       notes: 'Water the basil plant'
     },
@@ -22,12 +20,12 @@ const mockTasks: { [date: string]: CareReminder[] } = {
       id: '2',
       userPlantId: '2',
       type: 'fertilizing',
-      dueDate: '2025-03-20',
+      dueDate: '2025-06-20',
       completed: false,
       notes: 'Fertilize the tomato plant'
     }
   ],
-  '2025-03-22': [
+  '2025-06-22': [
     {
       id: '3',
       userPlantId: '3',
@@ -40,9 +38,10 @@ const mockTasks: { [date: string]: CareReminder[] } = {
 };
 
 export default function CalendarScreen() {
+  
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTasks, setSelectedTasks] = useState<CareReminder[]>([]);
-  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const [isCardVisible, setCardVisible] = useState(false);
 
   // Generate marked dates for the calendar
   const markedDates = Object.entries(mockTasks).reduce((acc, [date, tasks]) => {
@@ -65,13 +64,14 @@ export default function CalendarScreen() {
     return acc;
   }, {} as any);
 
-  const handleDayPress = (day: DateData) => {
+  const handleDayPress = useCallback((day: DateData) => {
     setSelectedDate(day.dateString);
-    setSelectedTasks(mockTasks[day.dateString] || []);
-    bottomSheetRef.current?.present();
-  };
+    const tasks = mockTasks[day.dateString] || [];
+    setSelectedTasks(tasks);
+    setCardVisible(true);
+  }, []);
 
-  const handleTaskComplete = (taskId: string) => {
+  const handleTaskComplete = useCallback((taskId: string) => {
     setSelectedTasks(prev => 
       prev.map(task => 
         task.id === taskId 
@@ -79,65 +79,38 @@ export default function CalendarScreen() {
           : task
       )
     );
-  };
+  }, []);
 
+  const handleCloseCard = useCallback(() => {
+    setCardVisible(false);
+  }, []);
+
+  // Simplified structure for testing
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.calendarContainer}>
-        <Calendar
-          initialDate={new Date().toISOString().split('T')[0]}
-          minDate={new Date().toISOString().split('T')[0]}
-          onDayPress={handleDayPress}
-          onDayLongPress={(day: DateData) => {
-            console.log('selected day', day);
-          }}
-          monthFormat={'MMMM yyyy'}
-          onMonthChange={(month: DateData) => {
-            console.log('month changed', month);
-          }}
-          hideArrows={false}
-          hideExtraDays={true}
-          disableMonthChange={false}
-          firstDay={1}
-          enableSwipeMonths={true}
-          theme={{
-            backgroundColor: Colors.white,
-            calendarBackground: Colors.white,
-            textSectionTitleColor: Colors.textPrimary,
-            selectedDayBackgroundColor: Colors.primary,
-            selectedDayTextColor: Colors.white,
-            todayTextColor: Colors.primary,
-            dayTextColor: Colors.textPrimary,
-            textDisabledColor: Colors.textMuted,
-            dotColor: Colors.primary,
-            selectedDotColor: Colors.white,
-            arrowColor: Colors.primary,
-            monthTextColor: Colors.textPrimary,
-            textDayFontFamily: 'System',
-            textMonthFontFamily: 'System',
-            textDayHeaderFontFamily: 'System',
-            textDayFontSize: 16,
-            textMonthFontSize: 16,
-            textDayHeaderFontSize: 13
-          }}
-          markingType={'multi-dot'}
-          markedDates={markedDates}
-        />
-      </View>
+    <View style={{ flex: 1, backgroundColor: Colors.bgLight }}>
+      <Calendar
+        onDayPress={handleDayPress}
+        markedDates={markedDates}
+        markingType={'multi-dot'}
+        style={{
+          marginTop: 50 // Simple margin to avoid status bar
+        }}
+      />
 
-      <DayTasksSheet
+      <DayTasksCard
         tasks={selectedTasks}
         onTaskComplete={handleTaskComplete}
-        bottomSheetRef={bottomSheetRef}
+        onClose={handleCloseCard}
+        visible={isCardVisible}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgLight,
+    backgroundColor: 'rgba(0,0,0,0)',
   },
   calendarContainer: {
     backgroundColor: Colors.white,

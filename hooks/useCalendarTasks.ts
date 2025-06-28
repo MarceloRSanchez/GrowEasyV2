@@ -1,10 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { CareReminder, TasksByDate } from '@/types/Plant';
+import { CareReminder } from '@/types/Plant';
 import { useAuth } from './useAuth';
 import { useEffect, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface TasksByDate {
+  [date: string]: CareReminder[];
+}
 
 interface UseCalendarTasksResult {
   tasks: TasksByDate;
@@ -12,9 +15,6 @@ interface UseCalendarTasksResult {
   error: string | null;
   refetch: () => Promise<void>;
 }
-
-// Key for caching tasks locally
-const TASKS_CACHE_KEY = '@GrowEasy:tasksCache';
 
 export function useCalendarTasks(
   startDate: string,
@@ -25,7 +25,6 @@ export function useCalendarTasks(
   const [appState, setAppState] = useState<AppStateStatus>(
     AppState.currentState
   );
-  const [isOnline, setIsOnline] = useState(true);
 
   // Listen for app state changes to refresh data when app comes to foreground
   useEffect(() => {
@@ -45,52 +44,10 @@ export function useCalendarTasks(
     };
   }, [appState]);
 
-  // Function to save tasks to local cache
-  const saveTasksToCache = async (tasks: TasksByDate, cacheKey: string) => {
-    try {
-      await AsyncStorage.setItem(cacheKey, JSON.stringify({
-        tasks,
-        timestamp: Date.now(),
-        startDate,
-        endDate
-      }));
-    } catch (error) {
-      console.error('Error saving tasks to cache:', error);
-    }
-  };
-
-  // Function to load tasks from local cache
-  const loadTasksFromCache = async (cacheKey: string): Promise<TasksByDate | null> => {
-    try {
-      const cacheData = await AsyncStorage.getItem(cacheKey);
-      if (!cacheData) return null;
-      
-      const { tasks, timestamp, startDate: cachedStart, endDate: cachedEnd } = JSON.parse(cacheData);
-      
-      // Check if cache is for the same date range
-      if (cachedStart !== startDate || cachedEnd !== endDate) {
-        return null;
-      }
-      
-      // Check if cache is too old (more than 1 hour)
-      if (Date.now() - timestamp > 60 * 60 * 1000) {
-        return null;
-      }
-      
-      return tasks;
-    } catch (error) {
-      console.error('Error loading tasks from cache:', error);
-      return null;
-    }
-  };
-
   const fetchTasks = async (): Promise<TasksByDate> => {
     if (!user) {
       throw new Error('User not authenticated');
     }
-
-    // Generate a cache key based on user and date range
-    const cacheKey = `${TASKS_CACHE_KEY}:${user.id}:${startDate}:${endDate}`;
 
     try {
       const { data, error } = await supabase.rpc('get_tasks_by_range', {
@@ -103,36 +60,20 @@ export function useCalendarTasks(
         throw new Error(error.message);
       }
 
-      // Save successful response to cache
-      if (data) {
-        saveTasksToCache(data, cacheKey);
-        setIsOnline(true);
-      }
-
       return data || {};
     } catch (error: any) {
       console.error('Error fetching calendar tasks:', error);
       
-      // Check if it's a network error
-      const isNetworkError = error.message.includes('network') || 
-                            error.message.includes('connection') ||
-                            error.message.includes('offline');
-      
-      if (isNetworkError) {
-        setIsOnline(false);
-      }
-      
-      // Try to get from cache
-      const cachedData = await loadTasksFromCache(cacheKey);
+      // If offline, try to get from cache
+      const cachedData = queryClient.getQueryData<TasksByDate>([
+        'calendarTasks',
+        user.id,
+        startDate,
+        endDate,
+      ]);
       
       if (cachedData) {
-        console.log('Using cached tasks data');
         return cachedData;
-      }
-      
-      // If no cache and it's a network error, return empty object instead of throwing
-      if (isNetworkError) {
-        return {};
       }
       
       throw error;

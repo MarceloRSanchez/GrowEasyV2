@@ -35,15 +35,11 @@ export interface UserPlant {
 
 export interface CareReminder {
   id: string;
-  user_plant_id: string;
+  userPlantId: string;
   type: 'watering' | 'fertilizing' | 'pruning' | 'harvesting';
-  due_date: string;
+  dueDate: string;
   completed: boolean;
   notes?: string;
-}
-
-export interface TasksByDate {
-  [date: string]: CareReminder[];
 }
 
 export interface DiagnosisResult {

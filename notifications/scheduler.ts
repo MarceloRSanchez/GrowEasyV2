@@ -1,10 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { CareReminder } from '@/types/Plant';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Storage key for notification preferences
-const NOTIFICATIONS_ENABLED_KEY = '@GrowEasy:notificationsEnabled';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -14,20 +10,6 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
-
-/**
- * Check if notifications are enabled in user preferences
- * @returns Promise<boolean> - Whether notifications are enabled
- */
-export async function areNotificationsEnabled(): Promise<boolean> {
-  try {
-    const storedValue = await AsyncStorage.getItem(NOTIFICATIONS_ENABLED_KEY);
-    return storedValue === 'true';
-  } catch (error) {
-    console.error('Failed to check notification preferences:', error);
-    return false;
-  }
-}
 
 /**
  * Request notification permissions
@@ -62,13 +44,6 @@ export async function scheduleTaskNotification(task: CareReminder): Promise<stri
     return null;
   }
 
-  // Check if notifications are enabled in user preferences
-  const notificationsEnabled = await areNotificationsEnabled();
-  if (!notificationsEnabled) {
-    console.log('Notifications are disabled in user preferences');
-    return null;
-  }
-
   // Check if permissions are granted
   const hasPermission = await requestNotificationPermissions();
   if (!hasPermission) {
@@ -78,7 +53,7 @@ export async function scheduleTaskNotification(task: CareReminder): Promise<stri
 
   try {
     // Parse the due date
-    const dueDate = new Date(task.due_date);
+    const dueDate = new Date(task.dueDate);
     
     // Set notification time to 9:00 AM on the due date
     dueDate.setHours(9, 0, 0, 0);
@@ -98,7 +73,7 @@ export async function scheduleTaskNotification(task: CareReminder): Promise<stri
       content: {
         title,
         body,
-        data: { taskId: task.id, userPlantId: task.user_plant_id },
+        data: { taskId: task.id, userPlantId: task.userPlantId },
       },
       trigger: {
         date: dueDate,
@@ -164,13 +139,6 @@ export async function scheduleAllTaskNotifications(
 ): Promise<Map<string, string>> {
   const notificationMap = new Map<string, string>();
 
-  // Check if notifications are enabled in user preferences
-  const notificationsEnabled = await areNotificationsEnabled();
-  if (!notificationsEnabled) {
-    console.log('Notifications are disabled in user preferences');
-    return notificationMap;
-  }
-
   // Check if permissions are granted
   const hasPermission = await requestNotificationPermissions();
   if (!hasPermission) {
@@ -189,58 +157,4 @@ export async function scheduleAllTaskNotifications(
   }
 
   return notificationMap;
-}
-
-/**
- * Set notification preferences
- * @param enabled Whether notifications should be enabled
- */
-export async function setNotificationsEnabled(enabled: boolean): Promise<void> {
-  try {
-    await AsyncStorage.setItem(NOTIFICATIONS_ENABLED_KEY, enabled.toString());
-    
-    // If disabling, cancel all scheduled notifications
-    if (!enabled) {
-      await cancelAllTaskNotifications();
-    }
-    
-    console.log(`Notifications ${enabled ? 'enabled' : 'disabled'}`);
-  } catch (error) {
-    console.error('Failed to save notification preferences:', error);
-  }
-}
-
-/**
- * Setup notification listeners for handling notification interactions
- * @param navigation The navigation object to use for routing
- */
-export function setupNotificationListeners(navigation: any): () => void {
-  if (Platform.OS === 'web') {
-    return () => {}; // No-op for web
-  }
-
-  // Handle notification received while app is foregrounded
-  const foregroundSubscription = Notifications.addNotificationReceivedListener(notification => {
-    console.log('Notification received in foreground:', notification);
-  });
-
-  // Handle notification interaction when app is foregrounded
-  const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-    const { taskId, userPlantId } = response.notification.request.content.data;
-    
-    console.log('Notification response received:', { taskId, userPlantId });
-    
-    // Navigate to the appropriate screen
-    if (userPlantId) {
-      navigation.navigate('plant', { userPlantId });
-    } else {
-      navigation.navigate('calendar');
-    }
-  });
-
-  // Return cleanup function
-  return () => {
-    foregroundSubscription.remove();
-    responseSubscription.remove();
-  };
 }

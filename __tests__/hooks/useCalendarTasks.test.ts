@@ -1,22 +1,15 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { useCalendarTasks } from '../../hooks/useCalendarTasks';
+import { useCalendarTasks } from '@/hooks/useCalendarTasks';
 import { supabase } from '@/lib/supabase';
 import { AppState } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Mock Supabase
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     rpc: jest.fn(),
   },
-}));
-
-// Mock AsyncStorage
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
 }));
 
 // Mock useAuth
@@ -62,9 +55,9 @@ const mockTasksData = {
   '2025-06-20': [
     {
       id: 'task-1',
-      user_plant_id: 'plant-1',
+      userPlantId: 'plant-1',
       type: 'watering',
-      due_date: '2025-06-20',
+      dueDate: '2025-06-20',
       completed: false,
       notes: 'Water the basil plant',
     },
@@ -72,9 +65,9 @@ const mockTasksData = {
   '2025-06-22': [
     {
       id: 'task-2',
-      user_plant_id: 'plant-2',
+      userPlantId: 'plant-2',
       type: 'fertilizing',
-      due_date: '2025-06-22',
+      dueDate: '2025-06-22',
       completed: false,
       notes: 'Fertilize the tomato plant',
     },
@@ -84,7 +77,6 @@ const mockTasksData = {
 describe('useCalendarTasks', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
   });
 
   it('should fetch tasks for the given date range', async () => {
@@ -137,44 +129,6 @@ describe('useCalendarTasks', () => {
     expect(result.current.error).toBe(errorMessage);
   });
 
-  it('should use cached data when offline', async () => {
-    // First mock a successful response to populate cache
-    mockSupabase.rpc.mockResolvedValueOnce({
-      data: mockTasksData,
-      error: null,
-    });
-    
-    // Mock AsyncStorage to return cached data
-    const cachedData = {
-      tasks: mockTasksData,
-      timestamp: Date.now(),
-      startDate: '2025-06-01',
-      endDate: '2025-06-30'
-    };
-    
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(cachedData));
-
-    const { result } = renderHook(
-      () => useCalendarTasks('2025-06-01', '2025-06-30'),
-      { wrapper: createWrapper() }
-    );
-
-    // Wait for initial load
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    // Now simulate network error
-    mockSupabase.rpc.mockRejectedValueOnce(new Error('Network error'));
-
-    // Manually trigger refetch
-    await result.current.refetch();
-
-    // Should still have the cached data
-    expect(result.current.tasks).toEqual(mockTasksData);
-    expect(AsyncStorage.getItem).toHaveBeenCalled();
-  });
-
   it('should refetch data when app comes to foreground', async () => {
     mockSupabase.rpc.mockResolvedValue({
       data: mockTasksData,
@@ -199,5 +153,31 @@ describe('useCalendarTasks', () => {
 
     // Should have called refetch
     expect(mockSupabase.rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('should return cached data when offline', async () => {
+    // First successful call to populate cache
+    mockSupabase.rpc.mockResolvedValueOnce({
+      data: mockTasksData,
+      error: null,
+    });
+
+    const { result, rerender } = renderHook(
+      () => useCalendarTasks('2025-06-01', '2025-06-30'),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Second call fails (simulating offline)
+    mockSupabase.rpc.mockRejectedValueOnce(new Error('Network error'));
+
+    // Manually trigger refetch
+    await result.current.refetch();
+
+    // Should still have the cached data
+    expect(result.current.tasks).toEqual(mockTasksData);
   });
 });

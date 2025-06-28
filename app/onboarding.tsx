@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Button } from '@/components/ui/Button';
 import { Leaf, Camera, Users, Award } from 'lucide-react-native';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 const { width } = Dimensions.get('window');
 
@@ -52,17 +53,23 @@ const onboardingData = [
 
 export default function OnboardingScreen() {
   const [currentPage, setCurrentPage] = useState(0);
+  const {
+    isLoading,
+    markOnboardingCompleted,
+  } = useOnboarding();
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentPage < onboardingData.length - 1) {
       setCurrentPage(currentPage + 1);
     } else {
-      router.replace('/(tabs)');
+      await markOnboardingCompleted();
+      router.replace('/auth');
     }
   };
 
-  const handleSkip = () => {
-    router.replace('/(tabs)');
+  const handleSkip = async () => {
+    await markOnboardingCompleted();
+    router.replace('/auth');
   };
 
   const currentData = onboardingData[currentPage];

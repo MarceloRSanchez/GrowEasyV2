@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { router } from 'expo-router';
 import { User, Bell, Leaf, Globe, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Camera, Moon, Smartphone } from 'lucide-react-native';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 interface SettingItem {
   icon: React.ReactNode;
@@ -32,6 +33,7 @@ export default function SettingsScreen() {
   const [darkMode, setDarkMode] = useState(false);
   const [autoWatering, setAutoWatering] = useState(false);
   const { user, signOut } = useAuth();
+  const { resetOnboarding } = useOnboarding();
 
   const profileData = {
     name: user?.email?.split('@')[0] || 'Gardener',
@@ -186,6 +188,29 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleResetOnboarding = async () => {
+    Alert.alert(
+      'Reset Onboarding',
+      'This will reset the onboarding flow. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            await resetOnboarding();
+            Alert.alert('Success', 'Onboarding reset! App will restart.', [
+              {
+                text: 'OK',
+                onPress: () => router.replace('/'),
+              },
+            ]);
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -252,6 +277,19 @@ export default function SettingsScreen() {
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>GrowEasy v1.0.0</Text>
           <Text style={styles.versionSubtext}>Built with 🌱 for urban gardeners</Text>
+        </View>
+
+        {/* Debug Button */}
+        <View style={styles.debugSection}>
+          <Text style={styles.debugSectionTitle}>Debug Tools</Text>
+          
+          <TouchableOpacity
+            style={styles.debugButton}
+            onPress={handleResetOnboarding}
+            accessibilityLabel="Reset onboarding flow"
+          >
+            <Text style={styles.debugButtonText}>🔄 Reset Onboarding</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -406,5 +444,32 @@ const styles = StyleSheet.create({
   versionSubtext: {
     ...Typography.caption,
     color: Colors.textMuted,
+  },
+  debugSection: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  debugSectionTitle: {
+    ...Typography.h3,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+  },
+  debugButton: {
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  debugButtonText: {
+    ...Typography.body,
+    color: Colors.primary,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

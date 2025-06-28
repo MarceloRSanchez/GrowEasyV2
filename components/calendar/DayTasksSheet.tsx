@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -16,13 +16,27 @@ import dayjs from 'dayjs';
 interface DayTasksSheetProps {
   tasks: CareReminder[];
   onTaskComplete: (taskId: string) => void;
-  bottomSheetRef: React.RefObject<BottomSheetModal>;
+  bottomSheetRef: React.RefObject<BottomSheetModal | null>;
   date: string;
 }
 
 const ACTION_WIDTH = 80;
 const SWIPE_THRESHOLD = 40;
 const SPRING_CONFIG = { damping: 20, stiffness: 300, mass: 0.5 };
+
+// Moved getIcon function outside of components
+function getIcon(type: CareReminder['type']) {
+  switch (type) {
+    case 'watering':
+      return <Droplets size={20} color={Colors.primary} />;
+    case 'fertilizing':
+      return <Zap size={20} color="#7ED321" />;
+    case 'harvesting':
+      return <Scissors size={20} color="#F5A623" />;
+    default:
+      return null;
+  }
+}
 
 export function DayTasksSheet({ tasks, onTaskComplete, bottomSheetRef, date }: DayTasksSheetProps) {
   // Variables
@@ -45,49 +59,34 @@ export function DayTasksSheet({ tasks, onTaskComplete, bottomSheetRef, date }: D
     []
   );
 
-  const getIcon = (type: CareReminder['type']) => {
-    switch (type) {
-      case 'watering':
-        return <Droplets size={20} color={Colors.primary} />;
-      case 'fertilizing':
-        return <Zap size={20} color="#7ED321" />;
-      case 'harvesting':
-        return <Scissors size={20} color="#F5A623" />;
-      default:
-        return null;
-    }
-  };
-
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Tasks';
+    
     const date = dayjs(dateString);
     const today = dayjs();
     const tomorrow = dayjs().add(1, 'day');
     
-    if (date.isSame(today, 'day')) {
+    // Compare full dates including year
+    if (date.format('YYYY-MM-DD') === today.format('YYYY-MM-DD')) {
       return 'Today';
-    } else if (date.isSame(tomorrow, 'day')) {
+    } else if (date.format('YYYY-MM-DD') === tomorrow.format('YYYY-MM-DD')) {
       return 'Tomorrow';
     } else {
       return date.format('MMMM D, YYYY');
     }
   };
 
-  const getTaskStatusColor = (task: CareReminder) => {
-    if (task.completed) {
-      return Colors.success;
-    }
-    
-    const dueDate = dayjs(task.dueDate);
-    const today = dayjs();
-    
-    if (dueDate.isBefore(today, 'day')) {
-      return Colors.error; // Overdue
-    } else if (dueDate.isSame(today, 'day')) {
-      return Colors.primary; // Due today
-    } else {
-      return Colors.accent; // Upcoming
-    }
-  };
+  // Sort tasks by completion status and due date
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      // Sort by completion status first
+      if (a.completed && !b.completed) return 1;
+      if (!a.completed && b.completed) return -1;
+      
+      // Then sort by due date
+      return dayjs(a.due_date).diff(dayjs(b.due_date));
+    });
+  }, [tasks]);
 
   return (
     <BottomSheetModal
@@ -115,7 +114,7 @@ export function DayTasksSheet({ tasks, onTaskComplete, bottomSheetRef, date }: D
           </View>
         ) : (
           <View style={styles.taskList}>
-            {tasks.map((task) => (
+            {sortedTasks.map((task) => (
               <SwipeableTaskItem
                 key={task.id}
                 task={task}
@@ -173,26 +172,52 @@ function SwipeableTaskItem({ task, onComplete }: SwipeableTaskItemProps) {
     };
   });
   
+  const getTaskStatusColor = (task: CareReminder) => {
+    if (task.completed) {
+      return Colors.success;
+    }
+    
+    const dueDate = dayjs(task.due_date);
+    const today = dayjs();
+    
+    if (dueDate.isBefore(today, 'day')) {
+      return Colors.error; // Overdue
+    } else if (dueDate.isSame(today, 'day')) {
+      return Colors.primary; // Due today
+    } else {
+      return Colors.accent; // Upcoming
+    }
+  };
+
   return (
     <View style={styles.swipeContainer}>
       {/* Action button that appears when swiping */}
       <Reanimated.View style={[styles.actionButton, actionStyle]}>
-        <Check size={24} color={Colors.white} />
+        {task.completed ? (
+          <X size={24} color={Colors.white} />
+        ) : (
+          <Check size={24} color={Colors.white} />
+        )}
       </Reanimated.View>
       
       {/* Swipeable task item */}
       <GestureDetector gesture={panGesture}>
         <Reanimated.View style={[styles.taskItem, animatedStyle, task.completed && styles.completedTask]}>
           <View style={[styles.taskIcon, { backgroundColor: `${getTaskStatusColor(task)}20` }]}>
-            {getIcon(task.type)}
+            {task.completed ? (
+              <Check size={24} color={Colors.success} />
+            ) : (
+              getIcon(task.type)
+            )}
           </View>
           
           <View style={styles.taskInfo}>
-            <Text style={styles.taskType}>
+            <Text style={[styles.taskType, task.completed && styles.completedText]}>
               {task.type.charAt(0).toUpperCase() + task.type.slice(1)}
+              {task.completed && ' (Completed)'}
             </Text>
             {task.notes && (
-              <Text style={styles.taskNotes} numberOfLines={2}>
+              <Text style={[styles.taskNotes, task.completed && styles.completedText]} numberOfLines={2}>
                 {task.notes}
               </Text>
             )}
@@ -200,12 +225,11 @@ function SwipeableTaskItem({ task, onComplete }: SwipeableTaskItemProps) {
           
           <TouchableOpacity 
             style={[styles.checkbox, task.completed && styles.checkboxChecked]}
-            onPress={() => !task.completed && onComplete(task.id)}
-            disabled={task.completed}
+            onPress={() => onComplete(task.id)}
             accessibilityLabel={`${task.type} task ${task.completed ? 'completed' : 'incomplete'}`}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: task.completed }}
-            accessibilityHint={task.completed ? "Task already completed" : "Tap to mark task as complete"}
+            accessibilityHint={task.completed ? "Tap to mark task as incomplete" : "Tap to mark task as complete"}
           >
             {task.completed && <Check size={16} color={Colors.white} />}
           </TouchableOpacity>
@@ -213,23 +237,6 @@ function SwipeableTaskItem({ task, onComplete }: SwipeableTaskItemProps) {
       </GestureDetector>
     </View>
   );
-}
-
-function getTaskStatusColor(task: CareReminder) {
-  if (task.completed) {
-    return Colors.success;
-  }
-  
-  const dueDate = dayjs(task.dueDate);
-  const today = dayjs();
-  
-  if (dueDate.isBefore(today, 'day')) {
-    return Colors.error; // Overdue
-  } else if (dueDate.isSame(today, 'day')) {
-    return Colors.primary; // Due today
-  } else {
-    return Colors.accent; // Upcoming
-  }
 }
 
 const styles = StyleSheet.create({
@@ -335,5 +342,9 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: Colors.success,
     borderColor: Colors.success,
+  },
+  completedText: {
+    color: Colors.textMuted,
+    textDecorationLine: 'line-through',
   },
 });

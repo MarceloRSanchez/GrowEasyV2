@@ -60,7 +60,7 @@
     "subtitle": "Ready to grow today?",
     "addPlant": "Add Plant",
     "waterLog": "Water Log",
-    "lightCheck": "Light Check",
+    "fertilizeLog": "Fertilize",
     "myPlants": "My Plants",
     "seeAll": "See all",
     "emptyGarden": {
@@ -75,8 +75,8 @@
     "quickActions": {
       "waterAlert": "Water Log",
       "waterMessage": "Water logging feature coming soon!",
-      "lightAlert": "Light Check", 
-      "lightMessage": "Light measurement feature coming soon!"
+      "fertilizeAlert": "Fertilize Log", 
+      "fertilizeMessage": "Fertilize logging feature coming soon!"
     }
   },
   "settings": {

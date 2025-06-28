@@ -22,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 interface PlantPickerSheetProps {
   bottomSheetRef: React.RefObject<BottomSheetModal>;
   onConfirm: (userPlantId: string) => void;
+  actionType?: 'water' | 'fertilize';
 }
 
 interface PlantItem {
@@ -32,7 +33,8 @@ interface PlantItem {
 
 export function PlantPickerSheet({ 
   bottomSheetRef, 
-  onConfirm 
+  onConfirm,
+  actionType = 'water'
 }: PlantPickerSheetProps) {
   const { user } = useAuth();
   const { data, loading } = useHomeSnapshot(user?.id);
@@ -42,6 +44,31 @@ export function PlantPickerSheet({
   
   // Snap points for the bottom sheet
   const snapPoints = useMemo(() => ['90%'], []);
+  
+  // Get action-specific content
+  const getActionContent = useCallback(() => {
+    switch (actionType) {
+      case 'fertilize':
+        return {
+          title: 'Fertilize a Plant',
+          buttonText: 'Log Fertilize',
+          icon: <Zap size={16} color={Colors.white} />,
+          accessibilityHint: `Tap to select ${searchQuery ? searchQuery : 'a plant'} for fertilizing`,
+          buttonColor: Colors.warning
+        };
+      case 'water':
+      default:
+        return {
+          title: 'Water a Plant',
+          buttonText: 'Log Water',
+          icon: <Droplets size={16} color={Colors.white} />,
+          accessibilityHint: `Tap to select ${searchQuery ? searchQuery : 'a plant'} for watering`,
+          buttonColor: Colors.primary
+        };
+    }
+  }, [actionType, searchQuery]);
+  
+  const actionContent = getActionContent();
   
   // Filter plants based on search query
   const filteredPlants = useMemo(() => {
@@ -105,14 +132,17 @@ export function PlantPickerSheet({
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={`${item.name}`}
-      accessibilityHint={`Tap to select ${item.name} for watering`}
+      accessibilityHint={`Tap to select ${item.name} for ${actionType === 'fertilize' ? 'fertilizing' : 'watering'}`}
       accessibilityState={{ selected: selectedPlantId === item.id }}
     >
       <Image source={{ uri: item.photoUrl }} style={styles.plantImage} />
       <Text style={styles.plantName}>{item.name}</Text>
       {selectedPlantId === item.id && (
         <View style={styles.checkmark}>
-          <Droplets size={16} color={Colors.white} />
+          {actionType === 'fertilize' ? 
+            <Zap size={16} color={Colors.white} /> : 
+            <Droplets size={16} color={Colors.white} />
+          }
         </View>
       )}
     </TouchableOpacity>
@@ -147,12 +177,12 @@ export function PlantPickerSheet({
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={styles.handleIndicator}
-      accessibilityLabel="Select plant to water"
+      accessibilityLabel={`Select plant to ${actionType === 'fertilize' ? 'fertilize' : 'water'}`}
     >
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Water a Plant</Text>
+          <Text style={styles.title}>{actionContent.title}</Text>
           <TouchableOpacity 
             style={styles.closeButton}
             onPress={() => bottomSheetRef.current?.close()}
@@ -205,14 +235,14 @@ export function PlantPickerSheet({
         {/* Action Button */}
         <View style={styles.footer}>
           <Button
-            title="Log Water"
+            title={actionContent.buttonText}
             onPress={handleConfirm}
             disabled={!selectedPlantId}
             size="large"
-            style={styles.waterButton}
-            accessibilityLabel="Log water button"
+            style={[styles.actionButton, { backgroundColor: actionContent.buttonColor }]}
+            accessibilityLabel={`${actionContent.buttonText} button`}
             accessibilityHint={selectedPlantId 
-              ? "Tap to log watering for selected plant" 
+              ? `Tap to log ${actionType === 'fertilize' ? 'fertilizing' : 'watering'} for selected plant` 
               : "Select a plant first to enable this button"}
           />
         </View>
@@ -321,7 +351,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
-  waterButton: {
+  actionButton: {
     width: '100%',
     marginHorizontal: Spacing.md,
   },

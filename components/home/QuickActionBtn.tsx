@@ -3,7 +3,7 @@ import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Plus, Droplets, Sun } from 'lucide-react-native';
 
-export type IconName = 'add' | 'water' | 'light';
+export type IconName = 'add' | 'water' | 'fertilize';
 
 interface QuickActionBtnProps {
   icon: IconName;
@@ -14,13 +14,13 @@ interface QuickActionBtnProps {
 const iconMap = {
   add: Plus,
   water: Droplets,
-  light: Sun,
+  fertilize: Zap,
 };
 
 const iconColors = {
   add: Colors.primary,
   water: Colors.accent,
-  light: Colors.warning,
+  fertilize: Colors.warning,
 };
 
 export function QuickActionBtn({ icon, label, onPress }: QuickActionBtnProps) {

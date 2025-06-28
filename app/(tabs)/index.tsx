@@ -27,6 +27,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { Calendar } from 'lucide-react-native';
 import { useLogWatering } from '@/hooks/useLogWatering';
+import { useLogFertilizing } from '@/hooks/useLogFertilizing';
 import { ConfettiCannon } from '@/components/ui/ConfettiCannon';
 
 export default function HomeScreen() {
@@ -36,11 +37,14 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showError, setShowError] = useState(true);
   const [showWaterPicker, setShowWaterPicker] = useState(false);
+  const [showFertilizePicker, setShowFertilizePicker] = useState(false);
   const quickActionSheetRef = React.useRef<QuickActionSheetRef>(null);
   const plantPickerRef = React.useRef<BottomSheetModal>(null);
+  const fertilizePickerRef = React.useRef<BottomSheetModal>(null);
   const { toast, showToast, hideToast } = useToast();
   const confettiRef = React.useRef<any>(null);
   const logWatering = useLogWatering();
+  const logFertilizing = useLogFertilizing();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -57,8 +61,9 @@ export default function HomeScreen() {
         setShowWaterPicker(true);
         plantPickerRef.current?.present();
         break;
-      case 'light':
-        Alert.alert(t('home.quickActions.lightAlert'), t('home.quickActions.lightMessage'));
+      case 'fertilize':
+        setShowFertilizePicker(true);
+        fertilizePickerRef.current?.present();
         break;
     }
   };
@@ -81,6 +86,29 @@ export default function HomeScreen() {
         },
         onError: () => {
           showToast('Error watering plant', 'error');
+        }
+      }
+    );
+  };
+
+  const handleFertilizeConfirm = (userPlantId: string) => {
+    logFertilizing.mutate(
+      { userPlantId },
+      {
+        onSuccess: () => {
+          // Trigger confetti
+          confettiRef.current?.start();
+          
+          // Show success toast
+          showToast('Fertilized! 🌱', 'success');
+          
+          // Close the picker after a delay
+          setTimeout(() => {
+            fertilizePickerRef.current?.close();
+          }, 1000);
+        },
+        onError: () => {
+          showToast('Error fertilizing plant', 'error');
         }
       }
     );
@@ -204,12 +232,12 @@ export default function HomeScreen() {
               <QuickActionBtn
                 icon="water"
                 label={t('home.waterLog')}
-                onPress={() => handleQuickAction('water')}
+                onPress={() => handleQuickAction('water')} 
               />
               <QuickActionBtn
-                icon="light"
-                label={t('home.lightCheck')}
-                onPress={() => handleQuickAction('light')}
+                icon="fertilize"
+                label={t('home.fertilizeLog')}
+                onPress={() => handleQuickAction('fertilize')}
               />
             </View>
 
@@ -262,6 +290,14 @@ export default function HomeScreen() {
       <PlantPickerSheet
         bottomSheetRef={plantPickerRef}
         onConfirm={handleWaterConfirm}
+        actionType="water"
+      />
+      
+      {/* Plant Picker Sheet for Fertilize Log */}
+      <PlantPickerSheet
+        bottomSheetRef={fertilizePickerRef}
+        onConfirm={handleFertilizeConfirm}
+        actionType="fertilize"
       />
 
       {/* Global Toast */}

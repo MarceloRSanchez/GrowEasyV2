@@ -1,0 +1,172 @@
+{
+  "language": {
+    "picker": {
+      "title": "Select Language",
+      "english": "English",
+      "spanish": "Español", 
+      "continue": "Continue"
+    }
+  },
+  "onboarding": {
+    "welcome": {
+      "slide1": {
+        "title": "Grow Fresh Food",
+        "subtitle": "Transform your space into a thriving urban garden with smart plant care guidance."
+      },
+      "slide2": {
+        "title": "AI-Powered Guidance", 
+        "subtitle": "Take photos of your plants and get instant diagnosis and care recommendations."
+      },
+      "slide3": {
+        "title": "Track Eco Impact",
+        "subtitle": "Monitor your CO₂ savings and join a community of urban gardeners making a difference."
+      },
+      "skip": "Skip",
+      "getStarted": "Get Started"
+    }
+  },
+  "auth": {
+    "title": "GrowEasy",
+    "welcomeBack": "Welcome back",
+    "createYourAccount": "Create your account",
+    "signUp": "Sign Up",
+    "logIn": "Sign In", 
+    "signIn": "Sign In",
+    "email": "Email",
+    "password": "Password",
+    "createAccount": "Create Account",
+    "tryDemoAccount": "Try Demo Account",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithApple": "Continue with Apple",
+    "checkInbox": "Check your inbox",
+    "verificationSent": "We've sent you a verification email",
+    "resendEmail": "Resend Email",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "fillAllFields": "Please fill in all fields",
+    "accountCreated": "Account created! Please check your email to verify your account.",
+    "existingAccount": "An account with this email already exists. Please sign in instead.",
+    "unexpectedError": "An unexpected error occurred",
+    "success": "Success",
+    "errors": {
+      "invalidEmail": "Enter a valid email",
+      "passwordTooShort": "Minimum 8 characters",
+      "invalidCredentials": "Email or password incorrect",
+      "noInternet": "No internet, retrying..."
+    }
+  },
+  "home": {
+    "greeting": "Good morning! 🌱",
+    "subtitle": "Ready to grow today?",
+    "addPlant": "Add Plant",
+    "waterLog": "Water Log",
+    "lightCheck": "Light Check",
+    "myPlants": "My Plants",
+    "seeAll": "See all",
+    "emptyGarden": {
+      "title": "Start Your Garden Journey! 🌱",
+      "subtitle": "Add your first plant and begin tracking its growth with smart care reminders.",
+      "button": "Add Your First Plant"
+    },
+    "todayCare": {
+      "allDone": "Great job!",
+      "allDoneMessage": "All care tasks completed for today! 🌱"
+    },
+    "quickActions": {
+      "waterAlert": "Water Log",
+      "waterMessage": "Water logging feature coming soon!",
+      "lightAlert": "Light Check", 
+      "lightMessage": "Light measurement feature coming soon!"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "debugTools": "Debug Tools",
+    "resetOnboarding": "🔄 Reset Onboarding",
+    "resetTitle": "Reset Onboarding",
+    "resetMessage": "This will reset the onboarding flow. Are you sure?",
+    "resetSuccess": "Onboarding reset! App will restart.",
+    "logOut": "Log Out",
+    "logOutTitle": "Log Out",
+    "logOutMessage": "Are you sure you want to log out?",
+    "logOutError": "Failed to sign out",
+    "profile": {
+      "plantsGrown": "Plants Grown",
+      "ecoPoints": "Eco Points",
+      "level": "Level"
+    },
+    "sections": {
+      "account": "Account",
+      "preferences": "Preferences", 
+      "garden": "Garden",
+      "support": "Support"
+    },
+    "items": {
+      "profile": {
+        "title": "Profile",
+        "subtitle": "Edit your personal information"
+      },
+      "photoPermissions": {
+        "title": "Photo Permissions",
+        "subtitle": "Manage camera and gallery access"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "subtitle": "Care reminders and updates"
+      },
+      "darkMode": {
+        "title": "Dark Mode",
+        "subtitle": "Switch to dark theme"
+      },
+      "language": {
+        "title": "Language",
+        "subtitle": "English (US)"
+      },
+      "gardenSettings": {
+        "title": "Garden Settings",
+        "subtitle": "Manage your plants and garden layout"
+      },
+      "smartDevices": {
+        "title": "Smart Devices",
+        "subtitle": "Connect IoT sensors and automation"
+      },
+      "help": {
+        "title": "Help & FAQ",
+        "subtitle": "Get help and find answers"
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "subtitle": "Read our privacy policy"
+      }
+    },
+    "alerts": {
+      "profile": "Profile settings coming soon!",
+      "permissions": "Photo permissions settings",
+      "language": "Language settings coming soon!",
+      "garden": "Garden settings coming soon!",
+      "help": "Help center coming soon!",
+      "privacy": "Privacy policy coming soon!"
+    },
+    "version": {
+      "text": "GrowEasy v1.0.0",
+      "subtext": "Built with 🌱 for urban gardeners"
+    }
+  },
+  "navigation": {
+    "home": "Home",
+    "diagnose": "Diagnose",
+    "community": "Community", 
+    "ar": "AR",
+    "shop": "Shop",
+    "settings": "Settings"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No"
+  }
+} 

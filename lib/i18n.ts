@@ -5,7 +5,6 @@ import { NativeModules, Platform } from 'react-native';
 
 // Import translations
 import enCommon from '@/locales/en/common.json';
-import esCommon from '@/locales/es/common.json';
 
 // Get device language
 const getDeviceLanguage = (): string => {

@@ -1,17 +1,30 @@
-import React, { useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Reanimated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 import { Colors, Typography, Spacing } from '@/constants/Colors';
-import { Droplets, Zap, Scissors } from 'lucide-react-native';
+import { Droplets, Zap, Scissors, Check, X } from 'lucide-react-native';
 import { CareReminder } from '@/types/Plant';
+import dayjs from 'dayjs';
 
 interface DayTasksSheetProps {
   tasks: CareReminder[];
   onTaskComplete: (taskId: string) => void;
   bottomSheetRef: React.RefObject<BottomSheetModal>;
+  date: string;
 }
 
-export function DayTasksSheet({ tasks, onTaskComplete, bottomSheetRef }: DayTasksSheetProps) {
+const ACTION_WIDTH = 80;
+const SWIPE_THRESHOLD = 40;
+const SPRING_CONFIG = { damping: 20, stiffness: 300, mass: 0.5 };
+
+export function DayTasksSheet({ tasks, onTaskComplete, bottomSheetRef, date }: DayTasksSheetProps) {
   // Variables
   const snapPoints = useMemo(() => ['50%'], []);
 
@@ -45,6 +58,37 @@ export function DayTasksSheet({ tasks, onTaskComplete, bottomSheetRef }: DayTask
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = dayjs(dateString);
+    const today = dayjs();
+    const tomorrow = dayjs().add(1, 'day');
+    
+    if (date.isSame(today, 'day')) {
+      return 'Today';
+    } else if (date.isSame(tomorrow, 'day')) {
+      return 'Tomorrow';
+    } else {
+      return date.format('MMMM D, YYYY');
+    }
+  };
+
+  const getTaskStatusColor = (task: CareReminder) => {
+    if (task.completed) {
+      return Colors.success;
+    }
+    
+    const dueDate = dayjs(task.dueDate);
+    const today = dayjs();
+    
+    if (dueDate.isBefore(today, 'day')) {
+      return Colors.error; // Overdue
+    } else if (dueDate.isSame(today, 'day')) {
+      return Colors.primary; // Due today
+    } else {
+      return Colors.accent; // Upcoming
+    }
+  };
+
   return (
     <BottomSheetModal
       ref={bottomSheetRef}
@@ -53,36 +97,30 @@ export function DayTasksSheet({ tasks, onTaskComplete, bottomSheetRef }: DayTask
       onChange={handleSheetChanges}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
+      handleIndicatorStyle={styles.handleIndicator}
     >
       <View style={styles.container}>
-        <Text style={styles.title}>Tasks for Today</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>
+            {date ? formatDate(date) : 'Tasks'}
+          </Text>
+          <Text style={styles.subtitle}>
+            {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'} scheduled
+          </Text>
+        </View>
+        
         {tasks.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No tasks for today</Text>
+            <Text style={styles.emptyText}>No tasks for this day</Text>
           </View>
         ) : (
           <View style={styles.taskList}>
             {tasks.map((task) => (
-              <TouchableOpacity
+              <SwipeableTaskItem
                 key={task.id}
-                style={styles.taskItem}
-                onPress={() => onTaskComplete(task.id)}
-              >
-                <View style={styles.taskIcon}>
-                  {getIcon(task.type)}
-                </View>
-                <View style={styles.taskInfo}>
-                  <Text style={styles.taskType}>
-                    {task.type.charAt(0).toUpperCase() + task.type.slice(1)}
-                  </Text>
-                  {task.notes && (
-                    <Text style={styles.taskNotes} numberOfLines={2}>
-                      {task.notes}
-                    </Text>
-                  )}
-                </View>
-                <View style={[styles.checkbox, task.completed && styles.checkboxChecked]} />
-              </TouchableOpacity>
+                task={task}
+                onComplete={onTaskComplete}
+              />
             ))}
           </View>
         )}
@@ -91,15 +129,131 @@ export function DayTasksSheet({ tasks, onTaskComplete, bottomSheetRef }: DayTask
   );
 }
 
+interface SwipeableTaskItemProps {
+  task: CareReminder;
+  onComplete: (taskId: string) => void;
+}
+
+function SwipeableTaskItem({ task, onComplete }: SwipeableTaskItemProps) {
+  const translateX = useSharedValue(0);
+  const startX = useSharedValue(0);
+  
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onStart(() => {
+      startX.value = translateX.value;
+    })
+    .onUpdate((e) => {
+      // Only allow swiping left (negative values)
+      translateX.value = Math.min(0, startX.value + e.translationX);
+    })
+    .onEnd((e) => {
+      if (translateX.value < -SWIPE_THRESHOLD) {
+        // Swiped far enough to trigger action
+        translateX.value = withSpring(-ACTION_WIDTH, SPRING_CONFIG);
+        // Complete the task
+        if (!task.completed) {
+          runOnJS(onComplete)(task.id);
+        }
+      } else {
+        // Reset position
+        translateX.value = withSpring(0, SPRING_CONFIG);
+      }
+    });
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+  
+  const actionStyle = useAnimatedStyle(() => {
+    const opacity = Math.min(1, Math.abs(translateX.value) / ACTION_WIDTH);
+    return {
+      opacity,
+      right: 0,
+    };
+  });
+  
+  return (
+    <View style={styles.swipeContainer}>
+      {/* Action button that appears when swiping */}
+      <Reanimated.View style={[styles.actionButton, actionStyle]}>
+        <Check size={24} color={Colors.white} />
+      </Reanimated.View>
+      
+      {/* Swipeable task item */}
+      <GestureDetector gesture={panGesture}>
+        <Reanimated.View style={[styles.taskItem, animatedStyle, task.completed && styles.completedTask]}>
+          <View style={[styles.taskIcon, { backgroundColor: `${getTaskStatusColor(task)}20` }]}>
+            {getIcon(task.type)}
+          </View>
+          
+          <View style={styles.taskInfo}>
+            <Text style={styles.taskType}>
+              {task.type.charAt(0).toUpperCase() + task.type.slice(1)}
+            </Text>
+            {task.notes && (
+              <Text style={styles.taskNotes} numberOfLines={2}>
+                {task.notes}
+              </Text>
+            )}
+          </View>
+          
+          <TouchableOpacity 
+            style={[styles.checkbox, task.completed && styles.checkboxChecked]}
+            onPress={() => !task.completed && onComplete(task.id)}
+            disabled={task.completed}
+            accessibilityLabel={`${task.type} task ${task.completed ? 'completed' : 'incomplete'}`}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: task.completed }}
+            accessibilityHint={task.completed ? "Task already completed" : "Tap to mark task as complete"}
+          >
+            {task.completed && <Check size={16} color={Colors.white} />}
+          </TouchableOpacity>
+        </Reanimated.View>
+      </GestureDetector>
+    </View>
+  );
+}
+
+function getTaskStatusColor(task: CareReminder) {
+  if (task.completed) {
+    return Colors.success;
+  }
+  
+  const dueDate = dayjs(task.dueDate);
+  const today = dayjs();
+  
+  if (dueDate.isBefore(today, 'day')) {
+    return Colors.error; // Overdue
+  } else if (dueDate.isSame(today, 'day')) {
+    return Colors.primary; // Due today
+  } else {
+    return Colors.accent; // Upcoming
+  }
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Spacing.md,
   },
+  handleIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.border,
+    borderRadius: 2,
+  },
+  header: {
+    marginBottom: Spacing.lg,
+  },
   title: {
     ...Typography.h3,
     color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
+  },
+  subtitle: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
   emptyState: {
     flex: 1,
@@ -114,6 +268,21 @@ const styles = StyleSheet.create({
   taskList: {
     gap: Spacing.md,
   },
+  swipeContainer: {
+    position: 'relative',
+    height: 80,
+  },
+  actionButton: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: ACTION_WIDTH,
+    backgroundColor: Colors.success,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
   taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -125,13 +294,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    height: '100%',
+    zIndex: 2,
+  },
+  completedTask: {
+    opacity: 0.7,
+    backgroundColor: Colors.bgLight,
   },
   taskIcon: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.bgLight,
     borderRadius: 8,
   },
   taskInfo: {
@@ -155,9 +329,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.border,
     marginLeft: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
   },
-}); 
+});

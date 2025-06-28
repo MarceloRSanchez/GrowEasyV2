@@ -12,6 +12,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.bolt-expo-nativewind"
     },
+    "android": {
+      "package": "com.anonymous.boltexponativewind",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
     "web": {
       "bundler": "metro",
       "output": "single",
@@ -20,7 +27,15 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#32E177",
+          "sounds": ["./assets/sounds/notification.wav"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

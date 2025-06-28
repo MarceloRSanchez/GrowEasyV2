@@ -14,6 +14,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
 import { router } from 'expo-router';
 import { User, Bell, Leaf, Globe, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Camera, Moon, Smartphone } from 'lucide-react-native';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -31,6 +32,7 @@ interface SettingItem {
 export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const { isEnabled: notificationsEnabled, toggleNotifications } = useNotifications();
   const [autoWatering, setAutoWatering] = useState(false);
   const { user, signOut } = useAuth();
   const { resetOnboarding } = useOnboarding();
@@ -72,8 +74,8 @@ export default function SettingsScreen() {
           title: 'Notifications',
           subtitle: 'Care reminders and updates',
           type: 'toggle',
-          value: notifications,
-          onToggle: setNotifications,
+          value: notificationsEnabled,
+          onToggle: toggleNotifications,
         },
         {
           icon: <Moon size={24} color={Colors.textMuted} />,

@@ -41,7 +41,7 @@ export function PlantPickerSheet({
   const debouncedQuery = useDebounce(searchQuery, 300);
   
   // Snap points for the bottom sheet
-  const snapPoints = useMemo(() => ['40%'], []);
+  const snapPoints = useMemo(() => ['90%'], []);
   
   // Filter plants based on search query
   const filteredPlants = useMemo(() => {
@@ -140,6 +140,8 @@ export function PlantPickerSheet({
     <BottomSheetModal
       ref={bottomSheetRef}
       index={0}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       enablePanDownToClose
@@ -251,6 +253,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: 50,
     backgroundColor: Colors.bgLight,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
@@ -270,6 +273,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingVertical: Spacing.sm,
+    paddingBottom: 100, // Add extra padding at the bottom to ensure items are visible above keyboard
   },
   plantItem: {
     flexDirection: 'row',
@@ -307,11 +311,19 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
+    backgroundColor: Colors.white,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   waterButton: {
     width: '100%',
+    marginHorizontal: Spacing.md,
   },
   emptyContainer: {
     alignItems: 'center',

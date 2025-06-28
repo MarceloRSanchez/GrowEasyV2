@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Calendar, DateData, MarkedDates } from 'react-native-calendars';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { Calendar, DateData } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Colors, Typography, Spacing } from '@/constants/Colors';
@@ -14,6 +14,19 @@ import { useToast } from '@/hooks/useToast';
 import { Toast } from '@/components/ui/Toast';
 import { ArrowLeft, ArrowRight } from 'lucide-react-native';
 import dayjs from 'dayjs';
+import * as Haptics from 'expo-haptics';
+
+type MarkedDates = {
+  [date: string]: {
+    dots?: Array<{
+      key: string;
+      color: string;
+    }>;
+    marked?: boolean;
+    selected?: boolean;
+    selectedColor?: string;
+  };
+};
 
 export default function CalendarScreen() {
   const { user } = useAuth();
@@ -37,7 +50,12 @@ export default function CalendarScreen() {
   useEffect(() => {
     if (!isLoading && tasks) {
       const allTasks = Object.values(tasks).flat();
-      const upcomingTasks = allTasks.filter(task => !task.completed);
+      const upcomingTasks = allTasks.filter(task => {
+        // Only schedule notifications for tasks within the next 30 days
+        const dueDate = dayjs(task.due_date);
+        const now = dayjs();
+        return !task.completed && dueDate.isAfter(now) && dueDate.diff(now, 'days') <= 30;
+      });
       
       // Schedule notifications for upcoming tasks
       scheduleAllTaskNotifications(upcomingTasks);
@@ -52,31 +70,29 @@ export default function CalendarScreen() {
       // Skip dates with no tasks
       if (!dateTasks || dateTasks.length === 0) return;
       
-      // Create dots for each task type
+      // Create dots for each task
       const dots = dateTasks.map(task => {
         let color = Colors.primary; // Default color
         
-        // Set color based on task type and status
+        // Set color based on task type
         if (task.type === 'watering') {
-          color = task.completed ? Colors.success : Colors.primary;
+          color = Colors.primary;
         } else if (task.type === 'fertilizing') {
-          color = task.completed ? Colors.success : Colors.accent;
+          color = Colors.accent;
         } else if (task.type === 'harvesting') {
-          color = task.completed ? Colors.success : Colors.warning;
+          color = Colors.warning;
         }
         
         return {
           key: task.id,
-          color: color,
+          color: task.completed ? Colors.success : color,
         };
       });
       
-      // Add selected state if this is the selected date
       markedDates[date] = {
         dots,
-        marked: true,
         selected: date === selectedDate,
-        selectedColor: 'rgba(50, 225, 119, 0.1)',
+        selectedColor: Colors.primary,
       };
     });
   }
@@ -97,52 +113,98 @@ export default function CalendarScreen() {
     const task = selectedTasks.find(t => t.id === taskId);
     if (!task) return;
     
-    // Map task type to action type
-    const actionType = task.type === 'watering' 
-      ? 'water' 
-      : task.type === 'fertilizing' 
-        ? 'fertilize' 
-        : 'harvest';
+    console.log('🔥 Selected task for completion:', task);
     
-    logCareAction.mutate({
-      taskId,
-      userPlantId: task.userPlantId,
-      actionType,
-    }, {
-      onSuccess: (data) => {
-        showToast(`Task completed! +${data.eco_points_delta} eco points`, 'success');
-        
-        // Update local state
-        setSelectedTasks(prev => 
-          prev.map(t => 
-            t.id === taskId 
-              ? { ...t, completed: true }
-              : t
-          )
-        );
-        
-        // Close the sheet after a delay
-        setTimeout(() => {
-          bottomSheetRef.current?.close();
-        }, 1500);
-      },
-      onError: () => {
-        showToast('Failed to complete task', 'error');
-      }
-    });
-  }, [selectedTasks, logCareAction, showToast]);
+    // If task is already completed, uncomplete it
+    if (task.completed) {
+      logCareAction.mutate({
+        taskId,
+        userPlantId: task.user_plant_id,
+        actionType: task.type === 'watering' ? 'water' : task.type === 'fertilizing' ? 'fertilize' : 'harvest',
+        uncomplete: true
+      }, {
+        onSuccess: (data) => {
+          showToast(`Task uncompleted (${data.eco_points_delta} eco points)`, 'success');
+          
+          // Update local state
+          setSelectedTasks(prev => 
+            prev.map(t => 
+              t.id === taskId 
+                ? { ...t, completed: false }
+                : t
+            )
+          );
+          
+          // Trigger haptic feedback
+          if (Platform.OS !== 'web') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+
+          // Refetch tasks to update calendar
+          refetch();
+        }
+      });
+    } else {
+      // Map task type to action type
+      const actionType = task.type === 'watering' 
+        ? 'water' 
+        : task.type === 'fertilizing' 
+          ? 'fertilize' 
+          : 'harvest';
+      
+      // Set default amounts based on action type
+      const defaultAmount = actionType === 'water' 
+        ? 250  // 250ml for watering
+        : actionType === 'fertilize'
+          ? 10   // 10g for fertilizing
+          : 100; // 100g for harvesting
+      
+      logCareAction.mutate({
+        taskId,
+        userPlantId: task.user_plant_id,
+        actionType,
+        amount: defaultAmount
+      }, {
+        onSuccess: (data) => {
+          showToast(`Task completed (+${data.eco_points_delta} eco points)`, 'success');
+          
+          // Update local state
+          setSelectedTasks(prev => 
+            prev.map(t => 
+              t.id === taskId 
+                ? { ...t, completed: true }
+                : t
+            )
+          );
+          
+          // Trigger haptic feedback
+          if (Platform.OS !== 'web') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+
+          // Refetch tasks to update calendar
+          refetch();
+        }
+      });
+    }
+  }, [selectedTasks, logCareAction, refetch]);
+
+  // Handle month change (both swipe and buttons)
+  const handleMonthChange = useCallback((month: string) => {
+    setCurrentMonth(month);
+  }, []);
 
   // Navigate to previous month
-  const goToPreviousMonth = () => {
+  const goToPreviousMonth = useCallback(() => {
     const prevMonth = dayjs(currentMonth).subtract(1, 'month').format('YYYY-MM');
-    setCurrentMonth(prevMonth);
-  };
+    handleMonthChange(prevMonth);
+  }, [currentMonth, handleMonthChange]);
 
   // Navigate to next month
-  const goToNextMonth = () => {
+  const goToNextMonth = useCallback(() => {
     const nextMonth = dayjs(currentMonth).add(1, 'month').format('YYYY-MM');
-    setCurrentMonth(nextMonth);
-  };
+    handleMonthChange(nextMonth);
+  }, [currentMonth, handleMonthChange]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -200,8 +262,9 @@ export default function CalendarScreen() {
               textDayHeaderFontSize: 14,
             }}
             enableSwipeMonths={true}
+            current={currentMonth}
             onMonthChange={(month) => {
-              setCurrentMonth(`${month.year}-${String(month.month).padStart(2, '0')}`);
+              handleMonthChange(`${month.year}-${String(month.month).padStart(2, '0')}`);
             }}
           />
         )}

@@ -9,6 +9,7 @@ interface LogCareActionParams {
   userPlantId: string;
   actionType: 'water' | 'fertilize' | 'harvest';
   amount?: number;
+  uncomplete?: boolean;
 }
 
 interface LogCareActionResult {
@@ -29,6 +30,7 @@ export function useLogCareAction() {
       userPlantId,
       actionType,
       amount,
+      uncomplete,
     }: LogCareActionParams): Promise<LogCareActionResult> => {
       if (!user) {
         throw new Error('User not authenticated');
@@ -44,6 +46,7 @@ export function useLogCareAction() {
         p_user_plant_id: userPlantId,
         p_action_type: actionType,
         p_amount_ml: amount || null,
+        p_uncomplete: uncomplete || false,
       });
 
       if (error) {
@@ -66,7 +69,7 @@ export function useLogCareAction() {
       // Optimistically update calendar tasks
       queryClient.setQueriesData({ queryKey: ['calendarTasks'] }, (old: any) => {
         if (!old) return old;
-        
+
         // Deep clone to avoid mutating the cache directly
         const newData = JSON.parse(JSON.stringify(old));
         
@@ -74,7 +77,7 @@ export function useLogCareAction() {
         Object.keys(newData).forEach(date => {
           newData[date] = newData[date].map((task: any) => {
             if (task.id === variables.taskId) {
-              return { ...task, completed: true };
+              return { ...task, completed: !variables.uncomplete };
             }
             return task;
           });
@@ -88,13 +91,13 @@ export function useLogCareAction() {
         if (!old) return old;
         
         const ecoPointsDelta = 
-          variables.actionType === 'water' ? 1 :
-          variables.actionType === 'fertilize' ? 2 :
-          variables.actionType === 'harvest' ? 3 : 0;
+          variables.actionType === 'water' ? (variables.uncomplete ? -1 : 1) :
+          variables.actionType === 'fertilize' ? (variables.uncomplete ? -2 : 2) :
+          variables.actionType === 'harvest' ? (variables.uncomplete ? -3 : 3) : 0;
         
         return {
           ...old,
-          ecoScore: old.ecoScore + ecoPointsDelta,
+          ecoScore: Math.max(0, old.ecoScore + ecoPointsDelta),
           deltaWeek: old.deltaWeek + ecoPointsDelta,
           streakDays: old.streakDays + 1,
         };

@@ -12,7 +12,7 @@ export function updateEcoScoreOptimistically(queryClient: QueryClient, delta: nu
     
     return {
       ...old,
-      ecoScore: old.ecoScore + delta,
+      ecoScore: Math.max(0, old.ecoScore + delta),
       deltaWeek: old.deltaWeek + delta,
       streakDays: old.streakDays + 1,
     };

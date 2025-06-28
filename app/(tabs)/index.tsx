@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Colors, Typography, Spacing } from '@/constants/Colors';
+import { PlantPickerSheet } from '@/components/home/PlantPickerSheet';
 import { EcoScoreCard } from '@/components/home/EcoScoreCard';
 import { QuickActionBtn, IconName } from '@/components/home/QuickActionBtn';
 import { PlantCard } from '@/components/home/PlantCard';
@@ -25,6 +26,7 @@ import { useHomeSnapshot } from '@/hooks/useHomeSnapshot';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { Calendar } from 'lucide-react-native';
+import { useLogWatering } from '@/hooks/useLogWatering';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -32,8 +34,12 @@ export default function HomeScreen() {
   const { data, loading, error, refetch } = useHomeSnapshot(user?.id);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showError, setShowError] = useState(true);
+  const [showWaterPicker, setShowWaterPicker] = useState(false);
   const quickActionSheetRef = React.useRef<QuickActionSheetRef>(null);
+  const plantPickerRef = React.useRef<BottomSheetModal>(null);
   const { toast, showToast, hideToast } = useToast();
+  const confettiRef = React.useRef<any>(null);
+  const logWatering = useLogWatering();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -47,12 +53,36 @@ export default function HomeScreen() {
         router.push('/add-plant');
         break;
       case 'water':
-        Alert.alert(t('home.quickActions.waterAlert'), t('home.quickActions.waterMessage'));
+        setShowWaterPicker(true);
+        plantPickerRef.current?.present();
         break;
       case 'light':
         Alert.alert(t('home.quickActions.lightAlert'), t('home.quickActions.lightMessage'));
         break;
     }
+  };
+
+  const handleWaterConfirm = (userPlantId: string) => {
+    logWatering.mutate(
+      { userPlantId },
+      {
+        onSuccess: () => {
+          // Trigger confetti
+          confettiRef.current?.start();
+          
+          // Show success toast
+          showToast('Watered! 💧', 'success');
+          
+          // Close the picker after a delay
+          setTimeout(() => {
+            plantPickerRef.current?.close();
+          }, 1000);
+        },
+        onError: () => {
+          showToast('Error watering plant', 'error');
+        }
+      }
+    );
   };
 
   const handlePlantPress = (plantId: string) => {
@@ -226,6 +256,12 @@ export default function HomeScreen() {
       <QuickActionSheet
         ref={quickActionSheetRef}
       />
+      
+      {/* Plant Picker Sheet for Water Log */}
+      <PlantPickerSheet
+        bottomSheetRef={plantPickerRef}
+        onConfirm={handleWaterConfirm}
+      />
 
       {/* Global Toast */}
       <Toast
@@ -234,6 +270,9 @@ export default function HomeScreen() {
         visible={toast.visible}
         onHide={hideToast}
       />
+      
+      {/* Confetti Cannon */}
+      <ConfettiCannon ref={confettiRef} />
     </SafeAreaView>
   );
 }

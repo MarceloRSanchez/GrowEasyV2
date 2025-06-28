@@ -53,7 +53,7 @@ export async function scheduleTaskNotification(task: CareReminder): Promise<stri
 
   try {
     // Parse the due date
-    const dueDate = new Date(task.dueDate);
+    const dueDate = new Date(task.due_date);
     
     // Set notification time to 9:00 AM on the due date
     dueDate.setHours(9, 0, 0, 0);
@@ -73,7 +73,7 @@ export async function scheduleTaskNotification(task: CareReminder): Promise<stri
       content: {
         title,
         body,
-        data: { taskId: task.id, userPlantId: task.userPlantId },
+        data: { taskId: task.id, userPlantId: task.user_plant_id },
       },
       trigger: {
         date: dueDate,
@@ -138,6 +138,11 @@ export async function scheduleAllTaskNotifications(
   tasks: CareReminder[]
 ): Promise<Map<string, string>> {
   const notificationMap = new Map<string, string>();
+
+  if (Platform.OS === 'web') {
+    console.log('Notifications not supported on web');
+    return notificationMap;
+  }
 
   // Check if permissions are granted
   const hasPermission = await requestNotificationPermissions();

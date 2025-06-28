@@ -28,7 +28,7 @@ const resources = {
     common: enCommon,
   },
   es: {
-    common: esCommon,
+    common: enCommon,
   },
 };
 

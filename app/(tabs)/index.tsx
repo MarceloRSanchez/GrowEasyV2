@@ -27,6 +27,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { Calendar } from 'lucide-react-native';
 import { useLogWatering } from '@/hooks/useLogWatering';
+import { ConfettiCannon } from '@/components/ui/ConfettiCannon';
 
 export default function HomeScreen() {
   const { t } = useTranslation();

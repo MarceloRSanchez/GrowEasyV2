@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Colors, Typography, Spacing } from '@/constants/Colors';
 import { EcoScoreCard } from '@/components/home/EcoScoreCard';
 import { QuickActionBtn, IconName } from '@/components/home/QuickActionBtn';
@@ -18,17 +19,21 @@ import { TodayCareCard } from '@/components/home/TodayCareCard';
 import { EmptyGardenState } from '@/components/home/EmptyGardenState';
 import { HomeLoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorToast } from '@/components/ui/ErrorToast';
+import { Toast } from '@/components/ui/Toast';
 import { QuickActionSheet, QuickActionSheetRef } from '@/components/quickActions/QuickActionSheet';
 import { useHomeSnapshot } from '@/hooks/useHomeSnapshot';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/useToast';
 import { Calendar } from 'lucide-react-native';
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { data, loading, error, refetch } = useHomeSnapshot(user?.id);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showError, setShowError] = useState(true);
   const quickActionSheetRef = React.useRef<QuickActionSheetRef>(null);
+  const { toast, showToast, hideToast } = useToast();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -42,10 +47,10 @@ export default function HomeScreen() {
         router.push('/add-plant');
         break;
       case 'water':
-        Alert.alert('Water Log', 'Water logging feature coming soon!');
+        Alert.alert(t('home.quickActions.waterAlert'), t('home.quickActions.waterMessage'));
         break;
       case 'light':
-        Alert.alert('Light Check', 'Light measurement feature coming soon!');
+        Alert.alert(t('home.quickActions.lightAlert'), t('home.quickActions.lightMessage'));
         break;
     }
   };
@@ -64,28 +69,8 @@ export default function HomeScreen() {
     });
   };
 
-  const handleQuickWater = (plantId: string) => {
-    // Action is handled by the QuickActionSheet with real mutations
-    console.log('Quick water completed for plant:', plantId);
-  };
-
-  const handleQuickFertilize = (plantId: string) => {
-    // Action is handled by the QuickActionSheet with real mutations
-    console.log('Quick fertilize completed for plant:', plantId);
-  };
-
-  const handleQuickHarvest = (plantId: string) => {
-    // Action is handled by the QuickActionSheet with real mutations
-    console.log('Quick harvest completed for plant:', plantId);
-  };
-
-  const handleQuickArchive = (plantId: string) => {
-    // Action is handled by the QuickActionSheet with real mutations
-    console.log('Quick archive completed for plant:', plantId);
-  };
-
   const handleTodayCareDone = () => {
-    Alert.alert('Great job!', 'All care tasks completed for today! 🌱');
+    Alert.alert(t('home.todayCare.allDone'), t('home.todayCare.allDoneMessage'));
   };
 
   const handleAddPlant = () => {
@@ -120,8 +105,8 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Good morning! 🌱</Text>
-            <Text style={styles.subtitle}>Ready to grow today?</Text>
+            <Text style={styles.greeting}>{t('home.greeting')}</Text>
+            <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
           </View>
           <TouchableOpacity style={styles.calendarButton} onPress={handleCalendarPress}>
             <Calendar size={24} color={Colors.primary} />
@@ -150,8 +135,8 @@ export default function HomeScreen() {
         {/* App Bar */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Good morning! 🌱</Text>
-            <Text style={styles.subtitle}>Ready to grow today?</Text>
+            <Text style={styles.greeting}>{t('home.greeting')}</Text>
+            <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
           </View>
           <TouchableOpacity style={styles.calendarButton} onPress={handleCalendarPress}>
             <Calendar size={24} color={Colors.primary} />
@@ -175,23 +160,24 @@ export default function HomeScreen() {
               deltaWeek={data.deltaWeek}
               streakDays={data.streakDays}
               litersSaved={data.litersSaved}
+              variant="menta" //lima, menta, coral
             />
 
             {/* Quick Actions Row */}
             <View style={styles.quickActionsContainer}>
               <QuickActionBtn
                 icon="add"
-                label="Add Plant"
+                label={t('home.addPlant')}
                 onPress={() => handleQuickAction('add')}
               />
               <QuickActionBtn
                 icon="water"
-                label="Water Log"
+                label={t('home.waterLog')}
                 onPress={() => handleQuickAction('water')}
               />
               <QuickActionBtn
                 icon="light"
-                label="Light Check"
+                label={t('home.lightCheck')}
                 onPress={() => handleQuickAction('light')}
               />
             </View>
@@ -209,15 +195,16 @@ export default function HomeScreen() {
             {data.plants.length > 0 && (
               <View style={styles.plantsSection}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>My Plants</Text>
+                  <Text style={styles.sectionTitle}>{t('home.myPlants')}</Text>
                   <TouchableOpacity onPress={() => router.push('/plants')}>
-                    <Text style={styles.seeAllText}>See all</Text>
+                    <Text style={styles.seeAllText}>{t('home.seeAll')}</Text>
                   </TouchableOpacity>
                 </View>
 
                 {data.plants.map((plant) => (
                   <PlantCard
                     key={plant.id}
+                    id={plant.id}
                     photoUrl={plant.photoUrl}
                     name={plant.name}
                     species={plant.species || 'Unknown species'}
@@ -226,6 +213,7 @@ export default function HomeScreen() {
                     nextActionColor={plant.nextActionColor}
                     onPress={() => handlePlantPress(plant.id)}
                     onQuickAction={() => handleQuickActionEdit(plant)}
+                    showToast={showToast}
                   />
                 ))}
               </View>
@@ -237,10 +225,14 @@ export default function HomeScreen() {
       {/* Quick Action Sheet */}
       <QuickActionSheet
         ref={quickActionSheetRef}
-        onWater={handleQuickWater}
-        onFertilize={handleQuickFertilize}
-        onHarvest={handleQuickHarvest}
-        onArchive={handleQuickArchive}
+      />
+
+      {/* Global Toast */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onHide={hideToast}
       />
     </SafeAreaView>
   );

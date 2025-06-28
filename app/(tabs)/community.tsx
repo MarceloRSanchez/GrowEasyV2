@@ -19,6 +19,7 @@ import { useFeedPosts } from '@/hooks/useFeedPosts';
 import { FlashList } from '@shopify/flash-list';
 import {
   Heart,
+  Plus,
   Trophy,
   Users,
   TrendingUp,
@@ -70,6 +71,7 @@ export default function CommunityScreen() {
   const [activeTab, setActiveTab] = useState<'feed' | 'leaderboard'>('feed');
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set()); 
   const [showError, setShowError] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
   
   const {
     data,
@@ -105,7 +107,18 @@ export default function CommunityScreen() {
   // Log feed opened analytics
   useEffect(() => {
     console.log('Analytics: feed_opened');
+    
+    // Set loaded state after initial data fetch
+    if (!isLoading && data) {
+      setIsLoaded(true);
+    }
   }, []);
+  
+  useEffect(() => {
+    if (!isLoading && data) {
+      setIsLoaded(true);
+    }
+  }, [isLoading, data]);
 
   const handleLike = (postId: string) => {
     const newLikedPosts = new Set(likedPosts);
@@ -211,6 +224,18 @@ export default function CommunityScreen() {
         />
       )}
 
+      {/* Floating Action Button */}
+      {isLoaded && activeTab === 'feed' && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => router.push('/community/new')}
+          accessibilityLabel="Create new post"
+          accessibilityRole="button"
+        >
+          <Plus size={24} color={Colors.white} />
+        </TouchableOpacity>
+      )}
+      
       {/* Content */}
       {activeTab === 'feed' ? (
         isLoading ? (
@@ -385,5 +410,22 @@ const styles = StyleSheet.create({
   loadingMoreText: {
     ...Typography.bodySmall,
     color: Colors.textMuted,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: Spacing.xl,
+    right: Spacing.xl,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.shadowColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 100,
   },
 });

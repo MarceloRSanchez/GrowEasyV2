@@ -3,40 +3,32 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Image,
-  FlatList,
+  RefreshControl,
+  ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { ErrorToast } from '@/components/ui/ErrorToast';
+import { PostCard } from '@/components/community/PostCard';
+import { FeedSkeleton } from '@/components/community/FeedSkeleton';
+import { EmptyFeed } from '@/components/community/EmptyFeed';
+import { useFeedPosts } from '@/hooks/useFeedPosts';
+import { FlashList } from '@shopify/flash-list';
 import {
   Heart,
-  MessageCircle,
-  Share,
   Trophy,
   Users,
   TrendingUp,
-  Award,
-  Star,
 } from 'lucide-react-native';
+import { useEffect } from 'react';
 
-interface CommunityPost {
-  id: string;
-  user: {
-    name: string;
-    avatar: string;
-    level: number;
-  };
-  content: string;
-  image?: string;
-  likes: number;
-  comments: number;
-  timestamp: string;
-  plantTag?: string;
-}
+type ViewableItemsChangedInfo = {
+  viewableItems: ViewToken[];
+  changed: ViewToken[];
+};
 
 interface LeaderboardUser {
   id: string;
@@ -46,50 +38,6 @@ interface LeaderboardUser {
   plantsGrown: number;
   rank: number;
 }
-
-const mockPosts: CommunityPost[] = [
-  {
-    id: '1',
-    user: {
-      name: 'Sarah Green',
-      avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=400',
-      level: 5,
-    },
-    content: 'My first tomato harvest! 🍅 These cherry tomatoes grew faster than expected. Thanks to everyone who helped with the watering schedule!',
-    image: 'https://images.pexels.com/photos/533280/pexels-photo-533280.jpeg?auto=compress&cs=tinysrgb&w=800',
-    likes: 24,
-    comments: 8,
-    timestamp: '2h ago',
-    plantTag: 'Tomato',
-  },
-  {
-    id: '2',
-    user: {
-      name: 'Mike Chen',
-      avatar: 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=400',
-      level: 3,
-    },
-    content: 'Started my indoor herb garden today! Planted basil, mint, and rosemary. Any tips for beginners?',
-    image: 'https://images.pexels.com/photos/4750270/pexels-photo-4750270.jpeg?auto=compress&cs=tinysrgb&w=800',
-    likes: 15,
-    comments: 12,
-    timestamp: '4h ago',
-    plantTag: 'Herbs',
-  },
-  {
-    id: '3',
-    user: {
-      name: 'Emma Wilson',
-      avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
-      level: 7,
-    },
-    content: 'My succulent collection is thriving! These little guys are perfect for apartment living. 🌵',
-    likes: 31,
-    comments: 5,
-    timestamp: '6h ago',
-    plantTag: 'Succulent',
-  },
-];
 
 const mockLeaderboard: LeaderboardUser[] = [
   {
@@ -120,7 +68,44 @@ const mockLeaderboard: LeaderboardUser[] = [
 
 export default function CommunityScreen() {
   const [activeTab, setActiveTab] = useState<'feed' | 'leaderboard'>('feed');
-  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set()); 
+  const [showError, setShowError] = useState(true);
+  
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+    error,
+  } = useFeedPosts();
+  
+  // Track post views for analytics
+  const onViewableItemsChanged = React.useCallback(
+    ({ viewableItems }: ViewableItemsChangedInfo) => {
+      viewableItems.forEach(viewableItem => {
+        if (viewableItem.isViewable && viewableItem.item) {
+          // Log post view analytics
+          console.log('Analytics: post_viewed', { postId: viewableItem.item.id });
+        }
+      });
+    },
+    []
+  );
+  
+  const viewabilityConfig = {
+    itemVisiblePercentThreshold: 50,
+  };
+  
+  const viewabilityConfigCallbackPairs = React.useRef([
+    { viewabilityConfig, onViewableItemsChanged },
+  ]);
+  
+  // Log feed opened analytics
+  useEffect(() => {
+    console.log('Analytics: feed_opened');
+  }, []);
 
   const handleLike = (postId: string) => {
     const newLikedPosts = new Set(likedPosts);
@@ -132,77 +117,31 @@ export default function CommunityScreen() {
     setLikedPosts(newLikedPosts);
   };
 
+  const handleRefresh = async () => {
+    await refetch();
+  };
+
+  const handleRetry = () => {
+    setShowError(false);
+    refetch();
+  };
+
+  const handleDismissError = () => {
+    setShowError(false);
+  };
+
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
         return <Trophy size={20} color="#FFD700" />;
       case 2:
-        return <Award size={20} color="#C0C0C0" />;
+        return <Trophy size={20} color="#C0C0C0" />;
       case 3:
-        return <Star size={20} color="#CD7F32" />;
+        return <Trophy size={20} color="#CD7F32" />;
       default:
         return <Text style={styles.rankNumber}>{rank}</Text>;
     }
   };
-
-  const renderPost = ({ item }: { item: CommunityPost }) => (
-    <Card style={styles.postCard}>
-      {/* Post Header */}
-      <View style={styles.postHeader}>
-        <View style={styles.userInfo}>
-          <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
-          <View>
-            <View style={styles.nameContainer}>
-              <Text style={styles.userName}>{item.user.name}</Text>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>L{item.user.level}</Text>
-              </View>
-            </View>
-            <Text style={styles.timestamp}>{item.timestamp}</Text>
-          </View>
-        </View>
-        {item.plantTag && (
-          <View style={styles.plantTag}>
-            <Text style={styles.plantTagText}>{item.plantTag}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Post Content */}
-      <Text style={styles.postContent}>{item.content}</Text>
-
-      {/* Post Image */}
-      {item.image && (
-        <Image source={{ uri: item.image }} style={styles.postImage} />
-      )}
-
-      {/* Post Actions */}
-      <View style={styles.postActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleLike(item.id)}
-        >
-          <Heart
-            size={20}
-            color={likedPosts.has(item.id) ? Colors.error : Colors.textMuted}
-            fill={likedPosts.has(item.id) ? Colors.error : 'none'}
-          />
-          <Text style={styles.actionText}>
-            {item.likes + (likedPosts.has(item.id) ? 1 : 0)}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton}>
-          <MessageCircle size={20} color={Colors.textMuted} />
-          <Text style={styles.actionText}>{item.comments}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton}>
-          <Share size={20} color={Colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-    </Card>
-  );
 
   const renderLeaderboardItem = ({ item }: { item: LeaderboardUser }) => (
     <Card style={styles.leaderboardCard}>
@@ -227,6 +166,10 @@ export default function CommunityScreen() {
       </View>
     </Card>
   );
+
+  // Prepare posts data for FlashList
+  const posts = data?.pages.flatMap(page => page.posts) || [];
+  const isEmpty = !isLoading && posts.length === 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -259,21 +202,66 @@ export default function CommunityScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Error Toast */}
+      {error && showError && (
+        <ErrorToast
+          message={error.message || "Couldn't load feed. Please try again."}
+          onRetry={handleRetry}
+          onDismiss={handleDismissError}
+        />
+      )}
+
       {/* Content */}
       {activeTab === 'feed' ? (
-        <FlatList
-          data={mockPosts}
-          renderItem={renderPost}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.feedContainer}
-        />
+        isLoading ? (
+          <FeedSkeleton count={5} />
+        ) : isEmpty ? (
+          <EmptyFeed onRefresh={handleRefresh} />
+        ) : (
+          <FlashList
+            data={posts}
+            renderItem={({ item }) => (
+              <PostCard
+                post={item}
+                onLike={handleLike}
+                onComment={(id) => console.log('Comment on post', id)}
+                onShare={(id) => console.log('Share post', id)}
+                isLiked={likedPosts.has(item.id)}
+              />
+            )}
+            estimatedItemSize={400}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.feedContainer}
+            onEndReached={() => {
+              if (hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+              }
+            }}
+            onEndReachedThreshold={0.5}
+            refreshControl={
+              <RefreshControl
+                refreshing={isLoading}
+                onRefresh={handleRefresh}
+                colors={[Colors.primary]}
+                tintColor={Colors.primary}
+              />
+            }
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <View style={styles.loadingMore}>
+                  <Text style={styles.loadingMoreText}>Loading more posts...</Text>
+                </View>
+              ) : null
+            }
+            viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs.current}
+          />
+        )
       ) : (
-        <FlatList
+        <FlashList
           data={mockLeaderboard}
           renderItem={renderLeaderboardItem}
+          estimatedItemSize={100}
           keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.leaderboardContainer}
         />
       )}
@@ -336,90 +324,7 @@ const styles = StyleSheet.create({
   feedContainer: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.lg,
-  },
-  postCard: {
-    marginBottom: Spacing.md,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.md,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: Spacing.sm,
-  },
-  nameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  userName: {
-    ...Typography.body,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-  },
-  levelBadge: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-  },
-  levelText: {
-    ...Typography.caption,
-    color: Colors.white,
-    fontWeight: '600',
-  },
-  timestamp: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  plantTag: {
-    backgroundColor: Colors.bgLight,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  plantTagText: {
-    ...Typography.caption,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  postContent: {
-    ...Typography.body,
-    color: Colors.textPrimary,
-    lineHeight: 22,
-    marginBottom: Spacing.md,
-  },
-  postImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: BorderRadius.md,
-    resizeMode: 'cover',
-    marginBottom: Spacing.md,
-  },
-  postActions: {
-    flexDirection: 'row',
-    gap: Spacing.lg,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  actionText: {
-    ...Typography.bodySmall,
-    color: Colors.textMuted,
+    paddingTop: Spacing.sm,
   },
   leaderboardContainer: {
     paddingHorizontal: Spacing.md,
@@ -471,6 +376,14 @@ const styles = StyleSheet.create({
   },
   pointsLabel: {
     ...Typography.caption,
+    color: Colors.textMuted,
+  },
+  loadingMore: {
+    padding: Spacing.lg,
+    alignItems: 'center',
+  },
+  loadingMoreText: {
+    ...Typography.bodySmall,
     color: Colors.textMuted,
   },
 });

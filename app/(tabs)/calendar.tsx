@@ -214,21 +214,6 @@ export default function CalendarScreen() {
         <Text style={styles.subtitle}>Track and manage your plant care schedule</Text>
       </View>
       
-      {/* Month Navigation */}
-      <View style={styles.monthNav}>
-        <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
-          <ArrowLeft size={20} color={Colors.textPrimary} />
-        </TouchableOpacity>
-        
-        <Text style={styles.monthTitle}>
-          {dayjs(currentMonth).format('MMMM YYYY')}
-        </Text>
-        
-        <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-          <ArrowRight size={20} color={Colors.textPrimary} />
-        </TouchableOpacity>
-      </View>
-      
       {/* Calendar */}
       <View style={styles.calendarContainer}>
         {isLoading ? (

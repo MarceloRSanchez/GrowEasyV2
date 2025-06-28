@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Button } from '@/components/ui/Button';
 import { Scaling as Seedling } from 'lucide-react-native';
@@ -9,6 +10,8 @@ interface EmptyGardenStateProps {
 }
 
 export function EmptyGardenState({ onAddPlant }: EmptyGardenStateProps) {
+  const { t } = useTranslation();
+  
   return (
     <View style={styles.container}>
       <View style={styles.illustration}>
@@ -23,14 +26,13 @@ export function EmptyGardenState({ onAddPlant }: EmptyGardenStateProps) {
         </View>
       </View>
       
-      <Text style={styles.title}>Start your first seed</Text>
+      <Text style={styles.title}>{t('home.emptyGarden.title')}</Text>
       <Text style={styles.subtitle}>
-        Begin your urban gardening journey by adding your first plant. 
-        We'll guide you through every step of growing fresh food at home.
+        {t('home.emptyGarden.subtitle')}
       </Text>
       
       <Button
-        title="Add Plant"
+        title={t('home.emptyGarden.button')}
         onPress={onAddPlant}
         size="large"
         style={styles.button}

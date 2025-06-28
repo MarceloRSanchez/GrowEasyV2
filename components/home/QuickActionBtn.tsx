@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
-import { Plus, Droplets, Sun } from 'lucide-react-native';
+import { Plus, Droplets, Zap } from 'lucide-react-native';
 
 export type IconName = 'add' | 'water' | 'fertilize';
 

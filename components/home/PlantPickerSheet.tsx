@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { useHomeSnapshot } from '@/hooks/useHomeSnapshot';
 import { useAuth } from '@/hooks/useAuth';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Search, Droplets, X } from 'lucide-react-native';
+import { Search, Droplets, X, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 interface PlantPickerSheetProps {

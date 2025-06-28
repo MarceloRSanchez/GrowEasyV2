@@ -3,78 +3,115 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   Image,
-  Dimensions,
   Alert,
+  TouchableOpacity,
+  ScrollView as RNScrollView,
+  ActivityIndicator,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
+import {
+  Colors,
+  Typography,
+  Spacing,
+  BorderRadius,
+} from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ErrorToast } from '@/components/ui/ErrorToast';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { WaterHistoryChart } from '@/components/charts/WaterHistoryChart';
+import { SunExposureChart } from '@/components/charts/SunExposureChart';
+import { SoilHumidityDial } from '@/components/charts/SoilHumidityDial';
 import { usePlantDetail } from '@/hooks/usePlantDetail';
 import { useLogWatering } from '@/hooks/useLogWatering';
 import { useLogFertilizing } from '@/hooks/useLogFertilizing';
 import { useLogHarvest } from '@/hooks/useLogHarvest';
 import { useToast } from '@/hooks/useToast';
+import { useAuth } from '@/hooks/useAuth';
 import { ConfettiCannon, ConfettiCannonRef } from '@/components/ui/ConfettiCannon';
 import { Toast } from '@/components/ui/Toast';
-import { useAuth } from '@/hooks/useAuth';
-import { WaterHistoryChart } from '@/components/charts/WaterHistoryChart';
-import { SunExposureChart } from '@/components/charts/SunExposureChart';
-import { SoilHumidityDial } from '@/components/charts/SoilHumidityDial';
-import { 
-  ArrowLeft, 
-  Droplets, 
-  Zap, 
-  Scissors, 
-  Clock, 
-  Play, 
+import {
+  ArrowLeft,
+  Droplets,
+  Zap,
+  Scissors,
+  Clock,
+  Play,
   Camera,
   Archive,
-  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Flame,
 } from 'lucide-react-native';
+import { ActionButton } from '@/components/quickActions/ActionButton';
+// ==== CONSTANTS  ============================================================
+const HEADER_HEIGHT = 320;
+const ACTION_BAR_H = 72;
 
-const { width } = Dimensions.get('window');
-
+// ==== MAIN COMPONENT  =======================================================
 export default function PlantDetailScreen() {
+  /*  ---------------- hooks / queries ----------------  */
   const { userPlantId } = useLocalSearchParams<{ userPlantId: string }>();
   const { user } = useAuth();
-  const { data, isLoading, error, refetch } = usePlantDetail(userPlantId!, user?.id);
+  const { data, isLoading, error, refetch } = usePlantDetail(
+    userPlantId!,
+    user?.id,
+  );
   const logWatering = useLogWatering();
   const logFertilizing = useLogFertilizing();
   const logHarvest = useLogHarvest();
   const { toast, showToast, hideToast } = useToast();
-  const [scrollY, setScrollY] = useState(0);
-  const [showError, setShowError] = useState(true);
-  const confettiRef = useRef<ConfettiCannonRef>(null);
 
-  // Handle error state
+  /*  ---------------- local state ----------------  */
+  const confettiRef = useRef<ConfettiCannonRef>(null);
+  const [showError, setShowError] = useState(true);
+  const [showDanger, setShowDanger] = useState(false);
+
+  /*  ---------------- scroll animation ----------------  */
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y;
+    },
+  });
+
+  const headerImgAnim = useAnimatedStyle(() => ({
+    transform: [{ translateY: -scrollY.value * 0.5 }],
+  }));
+
+  const stickyNavAnim = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 200], [0, 1], 'clamp'),
+  }));
+
+  const actionBarAnim = useAnimatedStyle(() => ({
+    transform: [{ translateY: Math.max(-scrollY.value, 0) }],
+  }));
+
+  /*  ---------------- loading / error ----------------  */
   if (error && !data) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
-          {showError && (
-            <ErrorToast
-              message={error}
-              onRetry={refetch}
-              onDismiss={() => setShowError(false)}
-            />
-          )}
-        </View>
+        <HeaderBackOnly />
+        {showError && (
+          <ErrorToast
+            message={error}
+            onRetry={refetch}
+            onDismiss={() => setShowError(false)}
+          />
+        )}
       </SafeAreaView>
     );
   }
 
-  // Handle loading state
   if (isLoading || !data) {
     return (
       <SafeAreaView style={styles.container}>
@@ -83,738 +120,332 @@ export default function PlantDetailScreen() {
     );
   }
 
-  const plantData = data.plant;
-  
-  // Check if plant is archived
-  const isArchived = !plantData.is_active;
-  
-  // Calculate days since sowing
+  /*  ---------------- derived ----------------  */
+  const plant = data.plant;
   const daysSinceSow = Math.floor(
-    (new Date().getTime() - new Date(plantData.sow_date).getTime()) / (1000 * 60 * 60 * 24)
+    (Date.now() - new Date(plant.sow_date).getTime()) / 86_400_000,
   );
+  const isArchived = !plant.is_active;
 
-  const handleCareAction = (actionType: string) => {
-    if (!userPlantId) return;
-
-    // Trigger confetti
+  /*  ---------------- handlers ----------------  */
+  const handleCare = (type: 'water' | 'fertilize' | 'harvest') => {
     confettiRef.current?.start();
+    const mutationMap = {
+      water: logWatering,
+      fertilize: logFertilizing,
+      harvest: logHarvest,
+    } as const;
 
-    switch (actionType) {
-      case 'water':
-        logWatering.mutate(
-          { userPlantId },
-          {
-            onSuccess: () => {
-              showToast('Well watered! 💧', 'success');
-            },
-            onError: () => {
-              showToast('Something went wrong. Try again?', 'error');
-            },
-          }
-        );
-        break;
-      case 'fertilize':
-        logFertilizing.mutate(
-          { userPlantId },
-          {
-            onSuccess: () => {
-              showToast('Plant fertilized! 🌱', 'success');
-            },
-            onError: () => {
-              showToast('Something went wrong. Try again?', 'error');
-            },
-          }
-        );
-        break;
-      case 'harvest':
-        logHarvest.mutate(
-          { userPlantId },
-          {
-            onSuccess: () => {
-              showToast('Harvest complete! 🎉', 'success');
-            },
-            onError: () => {
-              showToast('Something went wrong. Try again?', 'error');
-            },
-          }
-        );
-        break;
-    }
-  };
-
-  const handlePlayVoiceGuide = () => {
-    Alert.alert('Voice Guide', 'Playing voice guidance...');
-  };
-
-  const handleAddNote = () => {
-    Alert.alert('Add Note', 'Camera functionality coming soon!');
-  };
-
-  const handleArchivePlant = () => {
-    Alert.alert(
-      'Archive Plant',
-      'Are you sure you want to archive this plant?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Archive', style: 'destructive', onPress: () => router.back() },
-      ]
+    mutationMap[type].mutate(
+      { userPlantId: userPlantId! },
+      {
+        onSuccess: () => showToast(`${type} done!`, 'success'),
+        onError: () => showToast('Something went wrong', 'error'),
+      },
     );
   };
 
-  const handleRetry = () => {
-    setShowError(false);
-    refetch();
-  };
+  // voice guide
+  const playVoice = () => Alert.alert('Voice guide', 'Playing voice guide…');
 
-  const headerHeight = 300;
-  const parallaxOffset = scrollY * 0.5;
-  const headerOpacity = Math.max(0, Math.min(1, scrollY / 200));
-
+  /*  ---------------- render ----------------  */
   return (
     <View style={styles.container}>
-      {/* Collapsing Header */}
-      <View style={[styles.header, { height: headerHeight }]}>
-        <Image
-          source={{ uri: plantData.plant.image_url }}
-          style={[
-            styles.headerImage,
-            { transform: [{ translateY: -parallaxOffset }] }
-          ]}
+      {/* HEADER */}
+      <View style={styles.headerWrap}>
+        <Animated.Image
+          source={{ uri: plant.plant.image_url }}
+          style={[styles.headerImg, headerImgAnim]}
+          blurRadius={4}
         />
-        <View style={styles.headerOverlay} />
-        
-        {/* Header Controls */}
-        <View style={styles.headerControls}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color={Colors.white} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Growth Ring & Info */}
+        <LinearGradient
+          colors={["rgba(0,0,0,0.3)", 'transparent', 'rgba(0,0,0,0.6)']}
+          style={styles.headerOverlay}
+        />
+        <HeaderBackOnly light />
         <View style={styles.headerContent}>
           <View style={styles.growthRing}>
-            <View style={styles.growthRingInner}>
-              <Text style={styles.growthPercent}>{plantData.growth_percent}%</Text>
-            </View>
+            <Text style={styles.growthPct}>{plant.growth_percent}%</Text>
           </View>
-          <Text style={styles.plantName}>{plantData.nickname}</Text>
-          <Text style={styles.plantSpecies}>{plantData.plant.scientific_name}</Text>
-          <Text style={styles.daysSinceSow}>{daysSinceSow} days since sowing</Text>
+          <Text style={styles.plantName}>{plant.nickname}</Text>
+          <Text style={styles.plantSpecies}>{plant.plant.scientific_name}</Text>
+          <Text style={styles.days}>{daysSinceSow} days since sowing</Text>
         </View>
       </View>
 
-      {/* Sticky Navigation Bar (appears on scroll) */}
-      <View style={[styles.stickyNav, { opacity: headerOpacity }]}>
-        <TouchableOpacity style={styles.stickyBackButton} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={Colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.stickyTitle}>{plantData.nickname}</Text>
-      </View>
+      {/* STICKY NAV TITLE */}
+      <Animated.View style={[styles.stickyNav, stickyNavAnim]}>
+        <HeaderBackOnly />
+        <Text style={styles.stickyTitle}>{plant.nickname}</Text>
+      </Animated.View>
 
-      <ScrollView
-        style={styles.scrollView}
-        onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
+      {/* SCROLL CONTENT */}
+      <Animated.ScrollView
+        onScroll={onScroll}
         scrollEventThrottle={16}
+        contentContainerStyle={{ paddingTop: HEADER_HEIGHT + ACTION_BAR_H + Spacing.md }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ height: headerHeight - 100 }} />
-
-        {/* Sticky Action Bar */}
-        <View style={styles.actionBar}>
+        {/* ACTION BAR */}
+        <Animated.View style={[styles.actionBar, actionBarAnim]}>
           <ActionButton
             type="water"
-            onPress={() => handleCareAction('water')}
+            onPress={() => handleCare('water')}
+            disabled={isLoading}
+            loading={false}
           />
           <ActionButton
             type="fertilize"
-            onPress={() => handleCareAction('fertilize')}
+            onPress={() => handleCare('fertilize')}
+            disabled={isLoading}
+            loading={false}
           />
           <ActionButton
             type="harvest"
-            onPress={() => handleCareAction('harvest')}
+            onPress={() => handleCare('harvest')}
+            disabled={isLoading}
+            loading={false}
           />
-        </View>
+        </Animated.View>
 
-        {/* Care Timeline */}
-        <Card style={styles.timelineCard}>
+        {/* Timeline */}
+        <Card style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Care Timeline</Text>
-          {(plantData.next_actions || []).map((action, index) => (
-            <TimelineItem
-              key={index}
-              icon={getActionIcon(action.type)}
-              label={action.label}
-              dueDate={action.due_date}
-              status={action.status}
-            />
-          ))}
+          {plant.next_actions
+            ?.slice()
+            .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+            .map((a) => (
+              <TimelineItem
+                key={a.type}
+                icon={getActionIcon(a.type)}
+                label={a.label}
+                dueDate={a.due_date}
+                status={a.status}
+              />
+            ))}
         </Card>
 
-        {/* Voice Guide Card */}
-        <Card style={styles.voiceGuideCard}>
-          <View style={styles.voiceGuideHeader}>
+        {/* Voice guide */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.voiceHeader}>
             <Text style={styles.sectionTitle}>Voice Guide</Text>
-            <TouchableOpacity style={styles.playButton} onPress={handlePlayVoiceGuide}>
-              <Play size={20} color={Colors.white} />
+            <TouchableOpacity style={styles.playBtn} onPress={playVoice}>
+              <Play size={20} color="#fff" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.voiceGuideText}>
-            "Hi there! Your {plantData.plant.name.toLowerCase()} is looking great at {plantData.growth_percent}% growth. {getVoiceGuideText(plantData)}"
+          <Text style={styles.voiceText}>
+            "Hi! Your {plant.nickname.toLowerCase()} is at {plant.growth_percent}% growth. {getVoiceGuideText(plant)}"
           </Text>
         </Card>
 
-        {/* Growth Analytics */}
-        <Card style={styles.analyticsCard}>
+        {/* Analytics */}
+        <Card style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Growth Analytics</Text>
-          
-          <WaterHistoryChart
-            data={data.analytics.waterHistory}
-            loading={isLoading}
-            error={!!error}
-          />
-          
-          <SunExposureChart
-            data={data.analytics.sunExposure}
-            loading={isLoading}
-            error={!!error}
-          />
-          
-          <SoilHumidityDial
-            humidity={data.analytics.soilHumidity}
-            loading={isLoading}
-            error={!!error}
-          />
+          <WaterHistoryChart data={data.analytics.waterHistory} loading={isLoading} error={!!error} />
+          <SunExposureChart data={data.analytics.sunExposure} loading={isLoading} error={!!error} />
+          <SoilHumidityDial humidity={data.analytics.soilHumidity} loading={isLoading} error={!!error} />
         </Card>
 
-        {/* Notes & Photos */}
-        <Card style={styles.notesCard}>
-          <View style={styles.notesHeader}>
-            <Text style={styles.sectionTitle}>Notes & Photos</Text>
-            <TouchableOpacity style={styles.addNoteButton} onPress={handleAddNote}>
-              <Camera size={20} color={Colors.primary} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.notesGallery}>
-            {data.notes.map((note) => (
-              <NoteItem
-                key={note.id}
-                imageUrl={note.imageUrl || 'https://images.pexels.com/photos/4750270/pexels-photo-4750270.jpeg?auto=compress&cs=tinysrgb&w=400'}
-                caption={note.caption}
-                createdAt={note.createdAt}
-              />
-            ))}
-          </ScrollView>
+        {/* Danger Zone collapsible */}
+        <Card style={styles.sectionCard}>
+          <TouchableOpacity style={styles.dangerHeader} onPress={() => setShowDanger((s) => !s)}>
+            <Text style={styles.dangerTitle}>Danger Zone</Text>
+            {showDanger ? <ChevronUp size={20} color={Colors.error} /> : <ChevronDown size={20} color={Colors.error} />}
+          </TouchableOpacity>
+          {showDanger && (
+            <Button
+              title="Archive Plant"
+              onPress={() => Alert.alert('Archive', 'Not implemented')}
+              variant="outline"
+              style={{ borderColor: Colors.error }}
+              textStyle={{ color: Colors.error }}
+            />
+          )}
         </Card>
 
-        {/* Danger Zone */}
-        <Card style={styles.dangerZone}>
-          <Text style={styles.dangerTitle}>Danger Zone</Text>
-          <Button
-            title="Archive Plant"
-            onPress={handleArchivePlant}
-            variant="outline"
-            style={[styles.dangerButton, { borderColor: Colors.error }]}
-            textStyle={{ color: Colors.error }}
-          />
-        </Card>
+        <View style={{ height: 120 }} />
+      </Animated.ScrollView>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Archived Plant Overlay */}
+      {/* ARCHIVED OVERLAY */}
       {isArchived && (
         <View style={styles.archivedOverlay}>
-          <View style={styles.archivedBadge}>
-            <Archive size={20} color={Colors.white} />
-            <Text style={styles.archivedText}>Archived Plant</Text>
-          </View>
+          <Archive size={24} color="#fff" />
+          <Text style={styles.archivedText}>Archived</Text>
         </View>
       )}
 
-      {/* Confetti Cannon */}
       <ConfettiCannon ref={confettiRef} />
-
-      {/* Toast */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        visible={toast.visible}
-        onHide={hideToast}
-      />
-
-      {/* Error Toast */}
-      {error && showError && (
-        <ErrorToast
-          message={error}
-          onRetry={handleRetry}
-          onDismiss={() => setShowError(false)}
-        />
-      )}
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} onHide={hideToast} />
     </View>
   );
 }
 
-// Action Button Component
-interface ActionButtonProps {
-  type: 'water' | 'fertilize' | 'harvest';
-  onPress: () => void;
-}
+// ==== SUB‑COMPONENTS  =======================================================
+const HeaderBackOnly = ({ light = false }: { light?: boolean }) => (
+  <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+    <ArrowLeft size={24} color={light ? '#fff' : Colors.textPrimary} />
+  </TouchableOpacity>
+);
 
-function ActionButton({ type, onPress }: ActionButtonProps) {
-  const getButtonConfig = () => {
-    switch (type) {
-      case 'water':
-        return {
-          icon: <Droplets size={24} color={Colors.white} />,
-          label: 'Water',
-          color: Colors.accent,
-        };
-      case 'fertilize':
-        return {
-          icon: <Zap size={24} color={Colors.white} />,
-          label: 'Fertilize',
-          color: Colors.warning,
-        };
-      case 'harvest':
-        return {
-          icon: <Scissors size={24} color={Colors.white} />,
-          label: 'Harvest',
-          color: Colors.success,
-        };
-    }
-  };
-
-  const config = getButtonConfig();
-
-  return (
-    <TouchableOpacity
-      style={[styles.actionButton, { backgroundColor: config.color }]}
-      onPress={onPress}
-      activeOpacity={0.8}
-      disabled={false} // Will be controlled by parent component
-    >
-      {config.icon}
-      <Text style={styles.actionButtonText}>{config.label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-// Timeline Item Component
-interface TimelineItemProps {
-  icon: React.ReactNode;
-  label: string;
-  dueDate: string;
-  status: 'overdue' | 'upcoming' | 'scheduled';
-}
-
-function TimelineItem({ icon, label, dueDate, status }: TimelineItemProps) {
-  const getStatusColor = () => {
-    switch (status) {
-      case 'overdue':
-        return Colors.error;
-      case 'upcoming':
-        return Colors.warning;
-      case 'scheduled':
-        return Colors.textMuted;
-    }
-  };
-
+const TimelineItem = ({ icon, label, dueDate, status }: any) => {
+  const colorMap = { overdue: Colors.error, upcoming: Colors.warning, scheduled: Colors.textMuted } as const;
+  const color = colorMap[status];
   return (
     <View style={styles.timelineItem}>
-      <View style={[styles.timelineIcon, { backgroundColor: `${getStatusColor()}15` }]}>
-        {icon}
-      </View>
-      <View style={styles.timelineContent}>
+      <View style={[styles.timelineDot, { backgroundColor: color }]} />
+      <View style={styles.timelineIcon}>{icon}</View>
+      <View style={{ flex: 1 }}>
         <Text style={styles.timelineLabel}>{label}</Text>
-        <Text style={[styles.timelineDate, { color: getStatusColor() }]}>
-          {new Date(dueDate).toLocaleDateString()}
-        </Text>
+        <Text style={[styles.timelineDate, { color }]}>{new Date(dueDate).toLocaleDateString()}</Text>
       </View>
     </View>
   );
-}
+};
 
-// Note Item Component
-interface NoteItemProps {
-  imageUrl: string;
-  caption: string;
-  createdAt: string;
-}
-
-function NoteItem({ imageUrl, caption, createdAt }: NoteItemProps) {
+function PlantDetailSkeleton() {
   return (
-    <View style={styles.noteItem}>
-      <Image source={{ uri: imageUrl }} style={styles.noteImage} />
-      <Text style={styles.noteCaption}>{caption}</Text>
-      <Text style={styles.noteDate}>{new Date(createdAt).toLocaleDateString()}</Text>
+    <View style={styles.container}>
+      <LoadingSkeleton width="100%" height={HEADER_HEIGHT} />
     </View>
   );
 }
 
-// Voice guide text generator
-function getVoiceGuideText(plantData: any) {
-  const tips = plantData.plant.tips || [];
-  const randomTip = tips[Math.floor(Math.random() * tips.length)];
-  
-  if (plantData.growth_percent >= 90) {
-    return "Your plant is ready for harvest! " + (randomTip || "Keep up the great work!");
-  }
-  
-  return randomTip || "Keep providing consistent care and your plant will thrive!";
-}
-
-// Helper function to get action icons
+// ==== HELPERS  ==============================================================
 function getActionIcon(type: string) {
   switch (type) {
     case 'water':
       return <Droplets size={20} color={Colors.accent} />;
     case 'fertilize':
       return <Zap size={20} color={Colors.warning} />;
-    case 'prune':
+    case 'harvest':
       return <Scissors size={20} color={Colors.success} />;
     default:
       return <Clock size={20} color={Colors.textMuted} />;
   }
 }
 
-// Loading skeleton component
-function PlantDetailSkeleton() {
-  return (
-    <View style={styles.container}>
-      {/* Header skeleton */}
-      <View style={[styles.header, { height: 300 }]}>
-        <LoadingSkeleton width="100%" height="100%" />
-        <View style={styles.headerOverlay} />
-        <View style={styles.headerControls}>
-          <LoadingSkeleton width={40} height={40} borderRadius={20} />
-        </View>
-        <View style={styles.headerContent}>
-          <LoadingSkeleton width={80} height={80} borderRadius={40} style={{ marginBottom: 16 }} />
-          <LoadingSkeleton width={200} height={28} style={{ marginBottom: 8 }} />
-          <LoadingSkeleton width={150} height={16} style={{ marginBottom: 4 }} />
-          <LoadingSkeleton width={120} height={14} />
-        </View>
-      </View>
-
-      <ScrollView style={styles.scrollView}>
-        <View style={{ height: 200 }} />
-        
-        {/* Action bar skeleton */}
-        <View style={styles.actionBar}>
-          <LoadingSkeleton width="30%" height={60} borderRadius={16} />
-          <LoadingSkeleton width="30%" height={60} borderRadius={16} />
-          <LoadingSkeleton width="30%" height={60} borderRadius={16} />
-        </View>
-
-        {/* Content skeletons */}
-        <View style={{ paddingHorizontal: 16 }}>
-          <LoadingSkeleton width="100%" height={200} borderRadius={12} style={{ marginBottom: 24 }} />
-          <LoadingSkeleton width="100%" height={150} borderRadius={12} style={{ marginBottom: 24 }} />
-          <LoadingSkeleton width="100%" height={300} borderRadius={12} style={{ marginBottom: 24 }} />
-          <LoadingSkeleton width="100%" height={180} borderRadius={12} style={{ marginBottom: 24 }} />
-        </View>
-      </ScrollView>
-    </View>
-  );
+function getVoiceGuideText(plant: any) {
+  return 'Keep the soil moist and provide indirect sunlight.';
 }
 
+// ==== STYLES  ===============================================================
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.bgLight,
-  },
-  errorContainer: {
-    flex: 1,
-    paddingTop: 50,
-    paddingHorizontal: 16,
-  },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-  },
-  headerImage: {
-    width: '100%',
-    height: '120%',
-    resizeMode: 'cover',
-  },
-  headerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  headerControls: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  /* container & header */
+  container: { flex: 1, backgroundColor: Colors.bgLight },
+  headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, height: HEADER_HEIGHT },
+  headerImg: { width: '100%', height: '100%' },
+  headerOverlay: { ...StyleSheet.absoluteFillObject },
   headerContent: {
     position: 'absolute',
-    bottom: 40,
+    bottom: ACTION_BAR_H + 8,
     left: 0,
     right: 0,
     alignItems: 'center',
   },
   growthRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 4,
     borderColor: Colors.primary,
+  },
+  growthPct: { ...Typography.h3, color: Colors.primary, fontWeight: '700' },
+  plantName: { ...Typography.h2, color: '#fff', marginTop: Spacing.sm },
+  plantSpecies: { ...Typography.body, color: 'rgba(255,255,255,0.9)', fontStyle: 'italic' },
+  days: { ...Typography.bodySmall, color: 'rgba(255,255,255,0.8)' },
+  backBtn: {
+    position: 'absolute',
+    top: Spacing.lg,
+    left: Spacing.md,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: Spacing.md,
+    zIndex: 3,
   },
-  growthRingInner: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  growthPercent: {
-    ...Typography.h3,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  plantName: {
-    ...Typography.h2,
-    color: Colors.white,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  plantSpecies: {
-    ...Typography.body,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginBottom: 4,
-  },
-  daysSinceSow: {
-    ...Typography.bodySmall,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-  },
+  /* sticky nav */
   stickyNav: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     height: 100,
-    backgroundColor: Colors.white,
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingBottom: Spacing.md,
     paddingHorizontal: Spacing.md,
+    backgroundColor: '#fff',
     zIndex: 2,
     shadowColor: Colors.shadowColor,
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  stickyBackButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  stickyTitle: {
-    ...Typography.h3,
-    color: Colors.textPrimary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  actionBar: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-    gap: Spacing.md,
-  },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    shadowColor: Colors.shadowColor,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 3,
   },
-  actionButtonText: {
-    ...Typography.bodySmall,
-    color: Colors.white,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  timelineCard: {
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  sectionTitle: {
-    ...Typography.h3,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.md,
-  },
-  timelineItem: {
+  stickyTitle: { ...Typography.h3, color: Colors.textPrimary, marginLeft: Spacing.md },
+  actionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  timelineIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  timelineContent: {
-    flex: 1,
-  },
-  timelineLabel: {
-    ...Typography.body,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-  },
-  timelineDate: {
-    ...Typography.bodySmall,
-    marginTop: 2,
-  },
-  voiceGuideCard: {
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-    backgroundColor: '#F0F9FF',
-  },
-  voiceGuideHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  playButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  voiceGuideText: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    lineHeight: 24,
-    fontStyle: 'italic',
-  },
-  analyticsCard: {
-    marginHorizontal: Spacing.md,
+    gap: Spacing.md,
     marginBottom: Spacing.lg,
   },
-  notesCard: {
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  notesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  addNoteButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: Colors.bgLight,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  notesGallery: {
-    flexDirection: 'row',
-  },
-  noteItem: {
-    width: 120,
-    marginRight: Spacing.md,
-  },
-  noteImage: {
-    width: 120,
-    height: 120,
-    borderRadius: BorderRadius.md,
-    resizeMode: 'cover',
-    marginBottom: Spacing.xs,
-  },
-  noteCaption: {
-    ...Typography.bodySmall,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  noteDate: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-  },
-  dangerZone: {
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-    backgroundColor: '#FEF2F2',
-  },
-  dangerTitle: {
-    ...Typography.body,
-    color: Colors.error,
-    fontWeight: '600',
-    marginBottom: Spacing.md,
-  },
-  dangerButton: {
-    width: '100%',
-  },
-  archivedOverlay: {
+  /* action bar */
+  actionBar: {
     position: 'absolute',
-    top: 0,
+    top: HEADER_HEIGHT,
     left: 0,
     right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  archivedBadge: {
+    height: ACTION_BAR_H,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.textMuted,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.md,
+    backgroundColor: 'transparent',
+    zIndex: 2,
     shadowColor: Colors.shadowColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    paddingBottom: 10,
   },
-  archivedText: {
-    ...Typography.body,
-    color: Colors.white,
-    fontWeight: '600',
-    marginLeft: Spacing.sm,
+  actionBtn: { flex: 1, height: '100%', borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  firstBtn: { borderTopLeftRadius: 20, borderBottomLeftRadius: 20 },
+  lastBtn: { borderTopRightRadius: 20, borderBottomRightRadius: 20 },
+  actionBtnText: { ...Typography.bodySmall, color: '#fff', fontWeight: '600' },
+
+  /* cards & sections */
+  sectionCard: { marginHorizontal: Spacing.md, marginBottom: Spacing.lg },
+  sectionTitle: { ...Typography.h3, color: Colors.textPrimary, marginBottom: Spacing.md },
+
+  /* timeline */
+  timelineItem: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
+  timelineDot: { width: 6, height: 6, borderRadius: 3, marginRight: Spacing.sm },
+  timelineIcon: { width: 40, alignItems: 'center' },
+  timelineLabel: { ...Typography.body, color: Colors.textPrimary, fontWeight: '600' },
+  timelineDate: { ...Typography.bodySmall },
+
+  /* voice guide */
+  voiceHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  playBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  voiceText: { ...Typography.body, color: Colors.textSecondary, lineHeight: 24, fontStyle: 'italic' },
+
+  /* danger zone */
+  dangerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dangerTitle: { ...Typography.body, color: Colors.error, fontWeight: '600' },
+
+  /* archived overlay */
+  archivedOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', zIndex: 10 },
+  archivedText: { ...Typography.body, color: '#fff', marginLeft: Spacing.sm, fontWeight: '600' },
+  /* botones */
+  actionContainer: {
+    position: 'absolute', right: 0, top: 0, bottom: 0, width: 100,
+    flexDirection: 'row', zIndex: 2,
   },
+  actionButton: { flex: 1, height: '100%', justifyContent: 'center', alignItems: 'center', marginRight: 4 },
+  first: { borderTopLeftRadius: 12, borderBottomLeftRadius: 12 },
+  last: { borderTopRightRadius: 12, borderBottomRightRadius: 12, marginRight: 8 },
+  actionText: { ...Typography.caption, color: Colors.white, fontWeight: '600', fontSize: 11, marginTop: 4 },
 });

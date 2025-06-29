@@ -38,6 +38,8 @@ import { useLogHarvest } from '@/hooks/useLogHarvest';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/hooks/useAuth';
 import { speak, unloadSound } from '@/lib/tts';
+import { AnalyticsKPI } from '@/components/plant/AnalyticsKPI';
+import { AnalyticsTabs } from '@/components/plant/AnalyticsTabs';
 import { ConfettiCannon, ConfettiCannonRef } from '@/components/ui/ConfettiCannon';
 import { Toast } from '@/components/ui/Toast';
 import {
@@ -53,6 +55,8 @@ import {
   ChevronUp,
   Flame,
   X,
+  Droplets,
+  Sun,
 } from 'lucide-react-native';
 import { ActionButton } from '@/components/quickActions/ActionButton';
 // ==== CONSTANTS  ============================================================
@@ -136,6 +140,13 @@ export default function PlantDetailScreen() {
     (Date.now() - new Date(plant.sow_date).getTime()) / 86_400_000,
   );
   const isArchived = !plant.is_active;
+  
+  // Calculate analytics summary values
+  const totalMl = data.analytics.waterHistory.reduce((sum, item) => sum + item.ml, 0);
+  const avgSun = data.analytics.sunExposure.length > 0
+    ? (data.analytics.sunExposure.reduce((sum, item) => sum + item.hours, 0) / data.analytics.sunExposure.length).toFixed(1)
+    : '0';
+  const soilHumidity = data.analytics.soilHumidity !== null ? data.analytics.soilHumidity : 0;
 
   /*  ---------------- handlers ----------------  */
   const handleCare = (type: 'water' | 'fertilize' | 'harvest') => {
@@ -295,9 +306,32 @@ export default function PlantDetailScreen() {
         {/* Analytics */}
         <Card style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Growth Analytics</Text>
-          <WaterHistoryChart data={data.analytics.waterHistory} loading={isLoading} error={!!error} />
-          <SunExposureChart data={data.analytics.sunExposure} loading={isLoading} error={!!error} />
-          <SoilHumidityDial humidity={data.analytics.soilHumidity} loading={isLoading} error={!!error} />
+          
+          <View style={styles.kpiRow}>
+            <AnalyticsKPI 
+              icon={<Droplets size={16} color={Colors.accent} />} 
+              label="Water" 
+              value={`${(totalMl / 1000).toFixed(1)} L`} 
+            />
+            <AnalyticsKPI 
+              icon={<Sun size={16} color={Colors.warning} />} 
+              label="Sun" 
+              value={`${avgSun} h/d`} 
+            />
+            <AnalyticsKPI 
+              icon={<Flame size={16} color={Colors.error} />} 
+              label="Humidity" 
+              value={`${soilHumidity}%`} 
+            />
+          </View>
+          
+          <AnalyticsTabs
+            water={data.analytics.waterHistory}
+            sun={data.analytics.sunExposure}
+            humidity={data.analytics.soilHumidity}
+            loading={isLoading}
+            error={!!error}
+          />
         </Card>
 
         {/* Danger Zone collapsible */}
@@ -473,6 +507,7 @@ const styles = StyleSheet.create({
   /* cards & sections */
   sectionCard: { marginHorizontal: Spacing.md, marginBottom: Spacing.lg },
   sectionTitle: { ...Typography.h3, color: Colors.textPrimary, marginBottom: Spacing.md },
+  kpiRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
 
   /* timeline */
   timelineItem: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },

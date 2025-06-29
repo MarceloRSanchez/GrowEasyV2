@@ -135,6 +135,8 @@ let webAudioUrl: string | null = null;
 // Clean up function to unload the sound
 export const unloadSound = async (): Promise<void> => {
   if (soundObject) {
+    // Clear the playback status update listener before unloading
+    soundObject.setOnPlaybackStatusUpdate(null);
     await soundObject.unloadAsync();
     soundObject = null;
   }

@@ -168,14 +168,19 @@ export default function PlantDetailScreen() {
       const tipsText = plant.plant.tips.join('. ');
       const voiceText = `Here are care tips for ${plant.nickname}. ${tipsText}`;
       
-      const sound = await speak(voiceText);
-      
-      // Set up completion handler
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.didJustFinish) {
-          setIsPlaying(false);
-        }
-      });
+      const handle = await speak(voiceText);
+
+      // Native (Expo) — use Expo Sound callbacks
+      if ('setOnPlaybackStatusUpdate' in handle) {
+        (handle as any).setOnPlaybackStatusUpdate((status: any) => {
+          if (status.didJustFinish) {
+            setIsPlaying(false);
+          }
+        });
+      } else {
+        // Web — HTMLAudioElement
+        (handle as HTMLAudioElement).onended = () => setIsPlaying(false);
+      }
     } catch (error) {
       console.error('Error playing voice guide:', error);
       setIsPlaying(false);

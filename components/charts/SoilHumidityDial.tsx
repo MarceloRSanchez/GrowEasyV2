@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
+import { EmptyState } from '@/components/empty/EmptyState';
 
 // Dial Skeleton Component
 function DialSkeleton() {
@@ -45,20 +47,15 @@ interface SoilHumidityDialProps {
 export function SoilHumidityDial({ humidity, loading, error }: SoilHumidityDialProps) {
   const dialConfig = useMemo(() => {
     if (humidity === null || humidity === undefined) {
-      return {
-        value: '—',
-        color: Colors.textMuted,
-        label: 'No data',
-        percentage: 0,
-      };
+      return null;
     }
 
     let color = Colors.primary;
     let label = 'Optimal';
 
     if (humidity < 30) {
-      color = Colors.error;
-      label = 'Too dry';
+      color = Colors.error; 
+      label = 'Too dry'; 
     } else if (humidity > 70) {
       color = Colors.warning;
       label = 'Too wet';
@@ -80,29 +77,75 @@ export function SoilHumidityDial({ humidity, loading, error }: SoilHumidityDialP
     return <DialError />;
   }
 
+  // Show empty state when humidity is 0 (sensor offline)
+  if (humidity === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Soil Humidity</Text>
+        <EmptyState
+          icon="🛑"
+          title="Sensor offline"
+          subtitle="Sensor offline or no readings yet."
+        />
+      </View>
+    );
+  }
+
+  // Show empty state when no data
+  if (!dialConfig) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Soil Humidity</Text>
+        <EmptyState
+          icon="💧"
+          title="No humidity data"
+          subtitle="Humidity readings will appear here."
+        />
+      </View>
+    );
+  }
+
+  // Calculate the angle for the semi-gauge (0-180 degrees)
+  const angle = (dialConfig.percentage / 100) * 180;
+  
+  // Calculate the coordinates for the arc
+  const radius = 70;
+  const cx = 80;
+  const cy = 80;
+  
+  // Calculate the end point of the arc
+  const endX = cx + radius * Math.sin((angle * Math.PI) / 180);
+  const endY = cy - radius * Math.cos((angle * Math.PI) / 180);
+  
+  // Create the path for the arc
+  const path = `M ${cx - radius} ${cy} A ${radius} ${radius} 0 ${angle > 180 ? 1 : 0} 1 ${endX} ${endY}`;
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Soil Humidity</Text>
-      <View style={styles.dialContainer}>
-        <View style={[styles.dial, { borderColor: dialConfig.color }]}>
-          <View style={[styles.dialInner, { backgroundColor: dialConfig.color }]}>
-            <Text style={styles.dialValue}>{dialConfig.value}</Text>
-            <Text style={styles.dialLabel}>{dialConfig.label}</Text>
-          </View>
-        </View>
-        
-        {/* Progress Ring */}
-        <View style={styles.progressRing}>
-          <View 
-            style={[
-              styles.progressFill,
-              {
-                backgroundColor: dialConfig.color,
-                transform: [{ rotate: `${(dialConfig.percentage / 100) * 180}deg` }],
-              }
-            ]}
+      <View style={styles.gaugeContainer}>
+        <Svg width={160} height={100} viewBox="0 0 160 100">
+          {/* Background track */}
+          <Path
+            d={`M 10 80 A 70 70 0 0 1 150 80`}
+            stroke="#F1F1F1"
+            strokeWidth={18}
+            strokeLinecap="round"
+            fill="none"
           />
-        </View>
+          
+          {/* Value arc */}
+          <Path
+            d={`M 10 80 A 70 70 0 ${angle > 90 ? 1 : 0} 1 ${endX} ${endY}`}
+            stroke={dialConfig.color}
+            strokeWidth={18}
+            strokeLinecap="round"
+            fill="none"
+          />
+        </Svg>
+        
+        <Text style={styles.gaugeValue}>{dialConfig.value}</Text>
+        <Text style={[styles.gaugeLabel, { color: dialConfig.color }]}>{dialConfig.label}</Text>
       </View>
     </View>
   );
@@ -116,66 +159,31 @@ const styles = StyleSheet.create({
   title: {
     ...Typography.body,
     color: Colors.textPrimary,
-    fontWeight: '600',
-    marginBottom: Spacing.md,
+    fontWeight: '600', 
+    marginBottom: Spacing.sm,
   },
-  dialContainer: {
-    position: 'relative',
+  gaugeContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dial: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    height: 160,
     backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
     shadowColor: Colors.shadowColor,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  dialInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dialValue: {
+  gaugeValue: {
     ...Typography.h2,
-    color: Colors.white,
+    color: Colors.textPrimary,
     fontWeight: '700',
-    marginBottom: 2,
+    marginTop: Spacing.sm,
   },
-  dialLabel: {
+  gaugeLabel: {
     ...Typography.bodySmall,
-    color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '600',
-  },
-  progressRing: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderTopColor: 'transparent',
-    borderRightColor: 'transparent',
-  },
-  progressFill: {
-    position: 'absolute',
-    width: 136,
-    height: 136,
-    borderRadius: 68,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    borderTopColor: Colors.primary,
-    borderRightColor: Colors.primary,
-    transformOrigin: 'center',
   },
   skeletonDial: {
     borderColor: Colors.border,
@@ -193,7 +201,7 @@ const styles = StyleSheet.create({
   skeletonLabel: {
     width: 60,
     height: 14,
-    backgroundColor: Colors.border,
-    borderRadius: 4,
+    backgroundColor: Colors.border, 
+    borderRadius: 4, 
   },
 });

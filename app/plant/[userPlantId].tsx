@@ -38,8 +38,8 @@ import { useLogHarvest } from '@/hooks/useLogHarvest';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/hooks/useAuth';
 import { speak, unloadSound } from '@/lib/tts';
-import { AnalyticsKPI } from '@/components/plant/AnalyticsKPI';
-import { AnalyticsTabs } from '@/components/plant/AnalyticsTabs';
+import { AnalyticsKPI } from '@/components/plant/AnalyticsKPI'; 
+import { AnalyticsTabs } from '@/components/plant/AnalyticsTabs'; 
 import { ConfettiCannon, ConfettiCannonRef } from '@/components/ui/ConfettiCannon';
 import { Toast } from '@/components/ui/Toast';
 import {
@@ -327,9 +327,10 @@ export default function PlantDetailScreen() {
           <AnalyticsTabs
             water={data.analytics.waterHistory}
             sun={data.analytics.sunExposure}
-            humidity={data.analytics.soilHumidity}
+            humidity={data.analytics.soilHumidity} 
             loading={isLoading}
-            error={!!error}
+            error={!!error} 
+            onQuickWater={() => handleCare('water')}
           />
         </Card>
 

@@ -11,12 +11,13 @@ type TabType = 'water' | 'sun' | 'humidity';
 interface AnalyticsTabsProps {
   water: Array<{ date: string; ml: number }>;
   sun: Array<{ date: string; hours: number }>;
-  humidity: number | null;
+  humidity: number | null; 
   loading: boolean;
   error: boolean;
+  onQuickWater?: () => void;
 }
 
-export function AnalyticsTabs({ water, sun, humidity, loading, error }: AnalyticsTabsProps) {
+export function AnalyticsTabs({ water, sun, humidity, loading, error, onQuickWater }: AnalyticsTabsProps) {
   const [selected, setSelected] = useState<TabType>('water');
 
   return (
@@ -67,7 +68,12 @@ export function AnalyticsTabs({ water, sun, humidity, loading, error }: Analytic
       <View style={styles.chartContainer}>
         {selected === 'water' && (
           <Animated.View entering={FadeIn.duration(300)} style={styles.chartWrapper}>
-            <WaterHistoryChart data={water} loading={loading} error={error} />
+            <WaterHistoryChart 
+              data={water} 
+              loading={loading} 
+              error={error} 
+              onQuickWater={onQuickWater} 
+            />
           </Animated.View>
         )}
         

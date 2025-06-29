@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
 import { BottomSheetModal, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { DiagnosisItem } from '@/hooks/useUserDiagnoses';
-import { CheckCircle, AlertTriangle, XCircle, X } from 'lucide-react-native';
+import { CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle, X } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { formatDistanceToNow } from 'date-fns';
 

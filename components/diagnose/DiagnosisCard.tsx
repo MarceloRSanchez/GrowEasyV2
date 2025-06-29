@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { formatDistanceToNow } from 'date-fns';
 import { DiagnosisItem } from '@/hooks/useUserDiagnoses';
-import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react-native';
+import { CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle } from 'lucide-react-native';
 
 interface DiagnosisCardProps {
   diagnosis: DiagnosisItem;

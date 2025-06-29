@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface DiagnoseRequest { 
   uri: string; 
@@ -19,11 +20,16 @@ export interface DiagnosisResult {
 
 export function useDiagnosePlant() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ uri }: DiagnoseRequest): Promise<DiagnosisResult> => {
+      if (!user) {
+        throw new Error('User must be authenticated to upload images');
+      }
+
       // 1. Upload image to Supabase Storage
-      const fileName = `${uuidv4()}.jpg`;
+      const fileName = `${user.id}/${uuidv4()}.jpg`;
       
       let file;
       if (Platform.OS === 'web') {

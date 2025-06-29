@@ -7,95 +7,165 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Toast } from '@/components/ui/Toast';
+import { useToast } from '@/hooks/useToast';
+import { DiagnosisCard } from '@/components/diagnose/DiagnosisCard';
+import { DiagnosisDetailSheet } from '@/components/diagnose/DiagnosisDetailSheet';
+import { DiagnosisEmptyState } from '@/components/diagnose/DiagnosisEmptyState';
+import { useDiagnosePlant, DiagnosisResult } from '@/hooks/useDiagnosePlant';
+import { useUserDiagnoses, DiagnosisItem } from '@/hooks/useUserDiagnoses';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Camera, Image as ImageIcon, Scan, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Circle as XCircle, Lightbulb } from 'lucide-react-native';
 
-interface DiagnosisHistory {
-  id: string;
-  imageUrl: string;
-  plantName: string;
-  result: 'healthy' | 'warning' | 'critical';
-  issues: string[];
-  date: string;
-}
-
-const mockDiagnosisHistory: DiagnosisHistory[] = [
-  {
-    id: '1',
-    imageUrl: 'https://images.pexels.com/photos/4750270/pexels-photo-4750270.jpeg?auto=compress&cs=tinysrgb&w=800',
-    plantName: 'Basil Plant',
-    result: 'healthy',
-    issues: [],
-    date: '2024-01-20',
-  },
-  {
-    id: '2',
-    imageUrl: 'https://images.pexels.com/photos/533280/pexels-photo-533280.jpeg?auto=compress&cs=tinysrgb&w=800',
-    plantName: 'Tomato Plant',
-    result: 'warning',
-    issues: ['Overwatering', 'Nutrient deficiency'],
-    date: '2024-01-19',
-  },
-  {
-    id: '3',
-    imageUrl: 'https://images.pexels.com/photos/568470/pexels-photo-568470.jpeg?auto=compress&cs=tinysrgb&w=800',
-    plantName: 'Mint Plant',
-    result: 'critical',
-    issues: ['Fungal infection', 'Root rot'],
-    date: '2024-01-18',
-  },
-];
-
 export default function DiagnoseScreen() {
+  // State
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Cleanup timeout on unmount
+  const [selectedDiagnosis, setSelectedDiagnosis] = useState<DiagnosisItem | null>(null);
+  const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
+  const [galleryPermission, setGalleryPermission] = useState<boolean | null>(null);
+  
+  // Refs
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  
+  // Hooks
+  const { toast, showToast, hideToast } = useToast();
+  const diagnoseMutation = useDiagnosePlant();
+  const { 
+    data: diagnoses, 
+    isLoading: diagnosesLoading, 
+    error: diagnosesError,
+    refetch: refetchDiagnoses
+  } = useUserDiagnoses();
+  
+  // Check permissions on mount
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
+    (async () => {
+      const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
+      setCameraPermission(cameraStatus.status === 'granted');
+      
+      const galleryStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      setGalleryPermission(galleryStatus.status === 'granted');
+    })();
   }, []);
-
-  const handleTakePhoto = () => {
-    Alert.alert(
-      'Camera Access',
-      'Camera functionality is not available in web preview. In a real app, this would open the camera.',
-      [{ text: 'OK' }]
-    );
+  
+  // Request permissions if needed
+  const requestPermissions = async (type: 'camera' | 'gallery') => {
+    if (type === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      setCameraPermission(status === 'granted');
+      return status === 'granted';
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      setGalleryPermission(status === 'granted');
+      return status === 'granted';
+    }
   };
 
-  const handleSelectFromGallery = () => {
-    Alert.alert(
-      'Gallery Access',
-      'Gallery functionality is not available in web preview. In a real app, this would open the photo gallery.',
-      [{ text: 'OK' }]
-    );
+  const handleTakePhoto = async () => {
+    // Check/request camera permission
+    if (!cameraPermission) {
+      const granted = await requestPermissions('camera');
+      if (!granted) {
+        showToast('Camera permission is required to take photos', 'error');
+        return;
+      }
+    }
+    
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled) {
+        const selectedAsset = result.assets[0];
+        
+        // Resize image to reduce file size
+        const manipResult = await ImageManipulator.manipulateAsync(
+          selectedAsset.uri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        
+        setSelectedImage(manipResult.uri);
+        handleAnalyze(manipResult.uri);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      showToast('Failed to take photo. Please try again.', 'error');
+    }
   };
 
-  const handleAnalyze = () => {
-    setIsAnalyzing(true);
-    // Simulate AI analysis
-    timeoutRef.current = setTimeout(() => {
-      setIsAnalyzing(false);
-      Alert.alert(
-        'Analysis Complete',
-        'Your plant appears healthy! No issues detected.',
-        [{ text: 'View Details' }]
-      );
-      timeoutRef.current = null;
-    }, 3000);
+  const handleSelectFromGallery = async () => {
+    // Check/request gallery permission
+    if (!galleryPermission) {
+      const granted = await requestPermissions('gallery');
+      if (!granted) {
+        showToast('Gallery permission is required to select photos', 'error');
+        return;
+      }
+    }
+    
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled) {
+        const selectedAsset = result.assets[0];
+        
+        // Resize image to reduce file size
+        const manipResult = await ImageManipulator.manipulateAsync(
+          selectedAsset.uri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        
+        setSelectedImage(manipResult.uri);
+        handleAnalyze(manipResult.uri);
+      }
+    } catch (error) {
+      console.error('Error selecting from gallery:', error);
+      showToast('Failed to select image. Please try again.', 'error');
+    }
   };
 
-  const getStatusIcon = (result: string) => {
-    switch (result) {
+  const handleAnalyze = async (uri: string) => {
+    try {
+      await diagnoseMutation.mutateAsync({ uri });
+      showToast('Plant diagnosis complete!', 'success');
+      setSelectedImage(null); // Reset selected image
+      refetchDiagnoses(); // Refresh diagnoses list
+    } catch (error) {
+      console.error('Diagnosis error:', error);
+      showToast('Failed to analyze plant. Please try again.', 'error');
+    }
+  };
+
+  const handleDiagnosisPress = (diagnosis: DiagnosisItem) => {
+    setSelectedDiagnosis(diagnosis);
+    bottomSheetRef.current?.present();
+  };
+
+  const handleCloseDetailSheet = () => {
+    setSelectedDiagnosis(null);
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
       case 'healthy':
         return <CheckCircle size={20} color={Colors.success} />;
       case 'warning':
@@ -107,8 +177,8 @@ export default function DiagnoseScreen() {
     }
   };
 
-  const getStatusColor = (result: string) => {
-    switch (result) {
+  const getStatusColor = (status: string) => {
+    switch (status) {
       case 'healthy':
         return Colors.success;
       case 'warning':
@@ -153,23 +223,18 @@ export default function DiagnoseScreen() {
               onPress={handleTakePhoto}
               variant="primary"
               style={styles.cameraButton}
+              loading={diagnoseMutation.isLoading && selectedImage !== null}
+              disabled={diagnoseMutation.isLoading}
             />
             <Button
               title="From Gallery"
               onPress={handleSelectFromGallery}
               variant="outline"
               style={styles.cameraButton}
+              loading={diagnoseMutation.isLoading && selectedImage === null}
+              disabled={diagnoseMutation.isLoading}
             />
           </View>
-
-          {selectedImage && (
-            <Button
-              title="Analyze Plant"
-              onPress={handleAnalyze}
-              loading={isAnalyzing}
-              style={styles.analyzeButton}
-            />
-          )}
         </Card>
 
         {/* AI Tips */}
@@ -189,40 +254,53 @@ export default function DiagnoseScreen() {
         {/* Recent Diagnoses */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Diagnoses</Text>
-          {mockDiagnosisHistory.map((diagnosis) => (
-            <TouchableOpacity key={diagnosis.id}>
-              <Card style={styles.historyCard}>
-                <View style={styles.historyContent}>
-                  <Image
-                    source={{ uri: diagnosis.imageUrl }}
-                    style={styles.historyImage}
-                  />
-                  <View style={styles.historyInfo}>
-                    <Text style={styles.historyPlantName}>{diagnosis.plantName}</Text>
-                    <View style={styles.historyStatus}>
-                      {getStatusIcon(diagnosis.result)}
-                      <Text
-                        style={[
-                          styles.historyResult,
-                          { color: getStatusColor(diagnosis.result) },
-                        ]}
-                      >
-                        {diagnosis.result.charAt(0).toUpperCase() + diagnosis.result.slice(1)}
-                      </Text>
-                    </View>
-                    {diagnosis.issues.length > 0 && (
-                      <Text style={styles.historyIssues}>
-                        {diagnosis.issues.join(', ')}
-                      </Text>
-                    )}
-                    <Text style={styles.historyDate}>{diagnosis.date}</Text>
-                  </View>
-                </View>
-              </Card>
-            </TouchableOpacity>
-          ))}
+          
+          {diagnosesLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading diagnoses...</Text>
+            </View>
+          ) : diagnosesError ? (
+            <Card style={styles.errorCard}>
+              <AlertTriangle size={24} color={Colors.error} />
+              <Text style={styles.errorText}>Failed to load diagnoses</Text>
+              <Button 
+                title="Retry" 
+                onPress={() => refetchDiagnoses()} 
+                variant="outline"
+                size="small"
+                style={styles.retryButton}
+              />
+            </Card>
+          ) : diagnoses && diagnoses.length > 0 ? (
+            diagnoses.map((diagnosis) => (
+              <DiagnosisCard
+                key={diagnosis.id}
+                diagnosis={diagnosis}
+                onPress={handleDiagnosisPress}
+              />
+            ))
+          ) : (
+            <DiagnosisEmptyState onTakePhoto={handleTakePhoto} />
+          )}
         </View>
       </ScrollView>
+      
+      {/* Diagnosis Detail Sheet */}
+      <DiagnosisDetailSheet
+        diagnosis={selectedDiagnosis}
+        isVisible={!!selectedDiagnosis}
+        onClose={handleCloseDetailSheet}
+        bottomSheetRef={bottomSheetRef}
+      />
+      
+      {/* Toast */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onHide={hideToast}
+      />
     </SafeAreaView>
   );
 }
@@ -324,45 +402,27 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: Spacing.md,
   },
-  historyCard: {
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  loadingText: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    marginTop: Spacing.md,
+  },
+  errorCard: {
+    alignItems: 'center',
+    padding: Spacing.lg,
     marginBottom: Spacing.md,
   },
-  historyContent: {
-    flexDirection: 'row',
-  },
-  historyImage: {
-    width: 80,
-    height: 80,
-    borderRadius: BorderRadius.sm,
-    resizeMode: 'cover',
-    marginRight: Spacing.md,
-  },
-  historyInfo: {
-    flex: 1,
-  },
-  historyPlantName: {
+  errorText: {
     ...Typography.body,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-    marginBottom: 4,
+    color: Colors.error,
+    marginVertical: Spacing.md,
   },
-  historyStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  historyResult: {
-    ...Typography.bodySmall,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  historyIssues: {
-    ...Typography.bodySmall,
-    color: Colors.textSecondary,
-    marginBottom: 4,
-  },
-  historyDate: {
-    ...Typography.caption,
-    color: Colors.textMuted,
+  retryButton: {
+    minWidth: 120,
   },
 });

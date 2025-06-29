@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     padding: Spacing.md,
-    borderBottomWidth: post.caption ? 1 : 0,
+    borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   actionButton: {

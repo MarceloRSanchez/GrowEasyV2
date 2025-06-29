@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Calendar, Home, Leaf, Settings, ShoppingBag, Wand2 } from 'lucide-react-native';
+import { Calendar, Home, Leaf, Settings, ShoppingBag, Wand2, Users } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 
 export default function TabLayout() {
@@ -33,6 +33,13 @@ export default function TabLayout() {
         options={{
           title: 'Diagnose',
           tabBarIcon: ({ color }) => <Wand2 size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="community"
+        options={{
+          title: 'Community',
+          tabBarIcon: ({ color }) => <Users size={24} color={color} />,
         }}
       />
       <Tabs.Screen

@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Calendar, Home, Leaf, Settings, ShoppingBag, Wand2, Users } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
+import 'react-native-get-random-values';
 
 export default function TabLayout() {
   return (

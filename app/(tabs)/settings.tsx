@@ -21,8 +21,9 @@ import { useToast } from '@/hooks/useToast';
 import { Toast } from '@/components/ui/Toast';
 import { useNotifications } from '@/hooks/useNotifications';
 import { router } from 'expo-router';
-import { User, Bell, Leaf, Globe, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Camera, Moon, Smartphone } from 'lucide-react-native';
+import { User, Bell, Leaf, Globe, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Camera, Moon, Smartphone, Volume2 } from 'lucide-react-native';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { testTTS } from '@/lib/tts';
 
 interface SettingItem {
   icon: React.ReactNode;
@@ -129,6 +130,20 @@ export default function SettingsScreen() {
     {
       title: 'Support',
       items: [
+        {
+          icon: <Volume2 size={24} color={Colors.primary} />,
+          title: 'Test Voice Guide',
+          subtitle: 'Test text-to-speech functionality',
+          type: 'navigation',
+          onPress: async () => {
+            try {
+              Alert.alert('Testing TTS', 'Check console for logs...');
+              await testTTS();
+            } catch (error) {
+              Alert.alert('TTS Error', `Failed to play audio: ${error}`);
+            }
+          },
+        },
         {
           icon: <HelpCircle size={24} color={Colors.textMuted} />,
           title: 'Help & FAQ',

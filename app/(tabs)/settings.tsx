@@ -12,8 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
+import { AvatarPicker } from '@/components/settings/AvatarPicker';
+import { DisplayNameEditor } from '@/components/settings/DisplayNameEditor';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useToast } from '@/hooks/useToast';
 import { useNotifications } from '@/hooks/useNotifications';
 import { router } from 'expo-router';
 import { User, Bell, Leaf, Globe, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Camera, Moon, Smartphone } from 'lucide-react-native';
@@ -33,17 +37,24 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const { isEnabled: notificationsEnabled, toggleNotifications } = useNotifications();
+  const { profile, isLoading: profileLoading, updateProfile } = useUserProfile();
+  const { toast, showToast, hideToast } = useToast();
   const [autoWatering, setAutoWatering] = useState(false);
   const { user, signOut } = useAuth();
   const { resetOnboarding } = useOnboarding();
 
-  const profileData = {
-    name: user?.email?.split('@')[0] || 'Gardener',
-    email: user?.email || 'user@groweasy.com',
-    avatar: 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=400',
-    level: 5,
-    plantsGrown: 12,
-    ecoPoints: 1250,
+  const handleUpdateDisplayName = async (newName: string) => {
+    try {
+      await updateProfile.mutateAsync({ display_name: newName });
+      showToast('Display name updated successfully', 'success');
+    } catch (error) {
+      console.error('Error updating display name:', error);
+      showToast('Failed to update display name', 'error');
+    }
+  };
+
+  const handleAvatarChange = (url: string) => {
+    showToast('Profile picture updated successfully', 'success');
   };
 
   const settingSections = [
@@ -218,30 +229,43 @@ export default function SettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Settings</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Settings</Text>
+            <Text style={styles.subtitle}>Manage your account and preferences</Text>
+          </View>
         </View>
 
         {/* Profile Card */}
         <Card style={styles.profileCard}>
           <View style={styles.profileHeader}>
-            <Image source={{ uri: profileData.avatar }} style={styles.profileAvatar} />
+            <AvatarPicker
+              avatarUrl={profile?.avatar_url}
+              size={80}
+              onAvatarChange={handleAvatarChange}
+              disabled={profileLoading || updateProfile.isLoading}
+            />
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{profileData.name}</Text>
-              <Text style={styles.profileEmail}>{profileData.email}</Text>
+              <DisplayNameEditor
+                displayName={profile?.display_name}
+                email={profile?.email || user?.email || 'user@example.com'}
+                onSave={handleUpdateDisplayName}
+                disabled={profileLoading || updateProfile.isLoading}
+              />
+              <Text style={styles.profileEmail}>{profile?.email || user?.email}</Text>
               <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>Level {profileData.level}</Text>
+                <Text style={styles.levelText}>Level 5</Text>
               </View>
             </View>
           </View>
           
           <View style={styles.profileStats}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{profileData.plantsGrown}</Text>
+              <Text style={styles.statValue}>12</Text>
               <Text style={styles.statLabel}>Plants Grown</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{profileData.ecoPoints}</Text>
+              <Text style={styles.statValue}>1250</Text>
               <Text style={styles.statLabel}>Eco Points</Text>
             </View>
           </View>
@@ -279,6 +303,14 @@ export default function SettingsScreen() {
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>GrowEasy v1.0.0</Text>
           <Text style={styles.versionSubtext}>Built with 🌱 for urban gardeners</Text>
+          
+          {/* Toast */}
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            visible={toast.visible}
+            onHide={hideToast}
+          />
         </View>
 
         {/* Debug Button */}
@@ -306,11 +338,19 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  titleContainer: {
+    marginBottom: Spacing.sm,
   },
   title: {
     ...Typography.h1,
     color: Colors.textPrimary,
+  },
+  subtitle: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
   profileCard: {
     marginHorizontal: Spacing.md,
@@ -319,21 +359,12 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  profileAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
     marginRight: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   profileInfo: {
     flex: 1,
-  },
-  profileName: {
-    ...Typography.h3,
-    color: Colors.textPrimary,
-    marginBottom: 4,
+    alignItems: 'center',
   },
   profileEmail: {
     ...Typography.body,

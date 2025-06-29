@@ -40,6 +40,7 @@
     "i18next": "^25.2.1",
     "lucide-react-native": "^0.475.0",
     "@shopify/flash-list": "^1.6.3",
+    "@types/uuid": "^9.0.8",
     "expo-image-picker": "~15.0.7",
     "expo-image-manipulator": "~13.0.0",
     "uuid": "^9.0.1",

@@ -2,6 +2,40 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 
+// Dial Skeleton Component
+function DialSkeleton() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Soil Humidity</Text>
+      <View style={styles.dialContainer}>
+        <View style={[styles.dial, styles.skeletonDial]}>
+          <View style={[styles.dialInner, styles.skeletonDialInner]}>
+            <View style={styles.skeletonValue} />
+            <View style={styles.skeletonLabel} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// Dial Error Component
+function DialError() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Soil Humidity</Text>
+      <View style={styles.dialContainer}>
+        <View style={[styles.dial, { borderColor: Colors.error }]}>
+          <View style={[styles.dialInner, { backgroundColor: '#FEF2F2' }]}>
+            <Text style={[styles.dialValue, { color: Colors.error }]}>—</Text>
+            <Text style={[styles.dialLabel, { color: Colors.error }]}>Error</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 interface SoilHumidityDialProps {
   humidity: number | null;
   loading?: boolean;
@@ -68,40 +102,6 @@ export function SoilHumidityDial({ humidity, loading, error }: SoilHumidityDialP
               }
             ]}
           />
-        </View>
-      </View>
-    </View>
-  );
-}
-
-// Dial Skeleton Component
-function DialSkeleton() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Soil Humidity</Text>
-      <View style={styles.dialContainer}>
-        <View style={[styles.dial, styles.skeletonDial]}>
-          <View style={[styles.dialInner, styles.skeletonDialInner]}>
-            <View style={styles.skeletonValue} />
-            <View style={styles.skeletonLabel} />
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-// Dial Error Component
-function DialError() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Soil Humidity</Text>
-      <View style={styles.dialContainer}>
-        <View style={[styles.dial, { borderColor: Colors.error }]}>
-          <View style={[styles.dialInner, { backgroundColor: '#FEF2F2' }]}>
-            <Text style={[styles.dialValue, { color: Colors.error }]}>—</Text>
-            <Text style={[styles.dialLabel, { color: Colors.error }]}>Error</Text>
-          </View>
         </View>
       </View>
     </View>

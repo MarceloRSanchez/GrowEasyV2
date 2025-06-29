@@ -99,7 +99,7 @@ export default function CreatePostScreen() {
       });
       
       // Success - navigate back to feed
-      router.back();
+      router.replace('/(tabs)/community');
     } catch (err) {
       console.error('Error creating post:', err);
       setError('Failed to create post. Please try again.');
@@ -122,7 +122,7 @@ export default function CreatePostScreen() {
           <View style={styles.header}>
             <TouchableOpacity 
               style={styles.closeButton} 
-              onPress={() => router.back()}
+              onPress={() => router.replace('/(tabs)/community')}
               accessibilityLabel="Close"
               accessibilityRole="button"
             >

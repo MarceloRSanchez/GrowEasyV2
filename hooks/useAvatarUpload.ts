@@ -1,68 +1,104 @@
-import { useMutation } from '@tanstack/react-query';
-import { Platform } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
+import { Platform } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { v4 as uuidv4 } from 'uuid';
 
-type UploadSource = 'camera' | 'library';
+export interface AvatarUploadOptions {
+  maxWidth?: number;
+  maxSizeKB?: number;
+}
 
 export function useAvatarUpload() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const pickImage = async (
+    source: 'camera' | 'library',
+    options: AvatarUploadOptions = {}
+  ): Promise<string | null> => {
+    const { maxWidth = 500, maxSizeKB = 512 } = options;
+
+    try {
+      // Request permissions first
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          throw new Error('Camera permission not granted');
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          throw new Error('Media library permission not granted');
+        }
+      }
+
+      // Launch camera or image picker
+      const pickerResult = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: 'images' as unknown as ImagePicker.MediaTypeOptions,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          });
+
+      if (pickerResult.canceled) {
+        return null;
+      }
+
+      const selectedAsset = pickerResult.assets[0];
+      
+      // Process image - resize and compress
+      const manipResult = await ImageManipulator.manipulateAsync(
+        selectedAsset.uri,
+        [{ resize: { width: maxWidth } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      return manipResult.uri;
+    } catch (error) {
+      console.error('Error picking image:', error);
+      throw error;
+    }
+  };
 
   const uploadAvatar = useMutation({
-    mutationFn: async (source: UploadSource): Promise<string> => {
+    mutationFn: async (uri: string): Promise<string> => {
       if (!user) {
-        throw new Error('You must be logged in to upload an avatar');
+        throw new Error('User not authenticated');
       }
 
-      // Request permissions
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      // Prepare file for upload
+      const fileExt = uri.split('.').pop() || 'jpg';
+      const uniqueName = `${uuidv4()}.${fileExt}`;
+      const filePath = `${user.id}/${uniqueName}`; // store inside user folder to satisfy RLS
       
-      if (!permissionResult.granted) {
-        throw new Error('Permission to access gallery was denied');
-      }
-
-      let result;
-
-      if (source === 'camera') {
-        // Request camera permissions
-        const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!cameraPermission.granted) {
-          throw new Error('Permission to access camera was denied');
-        }
-
-        result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.8,
-        });
+      let file;
+      if (Platform.OS === 'web') {
+        // For web, fetch the file and convert to blob
+        const response = await fetch(uri);
+        file = await response.blob();
       } else {
-        result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.8,
-        });
+        // For native, use the URI directly
+        file = {
+          uri,
+          name: uniqueName,
+          type: `image/${fileExt}`,
+        } as any;
       }
-
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        throw new Error('Image selection was cancelled');
-      }
-
-      const imageUri = result.assets[0].uri;
-      
-      // Convert image to blob for upload
-      const response = await fetch(imageUri);
-      const blob = await response.blob();
-
-      // Use user ID as the filename
-      const fileName = user.id;
       
       // Upload to Supabase Storage
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase
+        .storage
         .from('avatars')
-        .upload(fileName, blob, {
+        .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true,
         });
@@ -73,30 +109,55 @@ export function useAvatarUpload() {
       }
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = supabase
+        .storage
         .from('avatars')
-        .getPublicUrl(fileName);
+        .getPublicUrl(filePath);
 
       // Update user profile with new avatar URL
-      const { error: updateError } = await supabase
+      const { error: upsertError } = await supabase
         .from('user_profiles')
-        .upsert({
-          user_id: user.id,
-          avatar_url: publicUrl
-        });
+        .upsert({ user_id: user.id, avatar_url: publicUrl }, { onConflict: 'user_id' });
 
-      if (updateError) {
-        console.error('Profile update error:', updateError);
-        throw new Error('Failed to update profile');
+      if (upsertError) {
+        console.error('Profile upsert error:', upsertError);
+        throw new Error('Failed to update profile with new avatar');
       }
 
       return publicUrl;
     },
+    onMutate: async (uri) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['userProfile', user?.id] });
+
+      // Snapshot the previous value
+      const previousProfile = queryClient.getQueryData(['userProfile', user?.id]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(['userProfile', user?.id], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          avatar_url: uri, // Temporarily use local URI for optimistic update
+        };
+      });
+
+      return { previousProfile };
+    },
+    onError: (err, uri, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousProfile) {
+        queryClient.setQueryData(['userProfile', user?.id], context.previousProfile);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure cache is in sync with server
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user?.id] });
+    },
   });
 
   return {
+    pickImage,
     uploadAvatar,
-    isLoading: uploadAvatar.isPending,
-    error: uploadAvatar.error?.message || null
   };
 }

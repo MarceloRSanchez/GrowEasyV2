@@ -17,6 +17,7 @@ import { CommentsSheet } from '@/components/community/CommentsSheet';
 import { FeedSkeleton } from '@/components/community/FeedSkeleton';
 import { EmptyFeed } from '@/components/community/EmptyFeed';
 import { useFeedPosts } from '@/hooks/useFeedPosts';
+import { useLeaderboard, LeaderboardUser } from '@/hooks/useLeaderboard';
 import { FlashList } from '@shopify/flash-list';
 import {
   Heart,
@@ -32,42 +33,6 @@ type ViewableItemsChangedInfo = {
   viewableItems: ViewToken[];
   changed: ViewToken[];
 };
-
-interface LeaderboardUser {
-  id: string;
-  name: string;
-  avatar: string;
-  ecoPoints: number;
-  plantsGrown: number;
-  rank: number;
-}
-
-const mockLeaderboard: LeaderboardUser[] = [
-  {
-    id: '1',
-    name: 'Emma Wilson',
-    avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
-    ecoPoints: 2450,
-    plantsGrown: 18,
-    rank: 1,
-  },
-  {
-    id: '2',
-    name: 'David Kim',
-    avatar: 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=400',
-    ecoPoints: 2180,
-    plantsGrown: 15,
-    rank: 2,
-  },
-  {
-    id: '3',
-    name: 'Sarah Green',
-    avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=400',
-    ecoPoints: 1920,
-    plantsGrown: 12,
-    rank: 3,
-  },
-];
 
 export default function CommunityScreen() {
   const [activeTab, setActiveTab] = useState<'feed' | 'leaderboard'>('feed');
@@ -85,6 +50,13 @@ export default function CommunityScreen() {
     refetch,
     error,
   } = useFeedPosts();
+  
+  const {
+    data: leaderboard,
+    isLoading: lbLoading,
+    error: lbError,
+    refetch: refetchLb,
+  } = useLeaderboard();
   
   // Track post views for analytics
   const onViewableItemsChanged = React.useCallback(
@@ -154,6 +126,10 @@ export default function CommunityScreen() {
     setShowError(false);
   };
 
+  const handleRetryLeaderboard = () => {
+    refetchLb();
+  };
+
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
@@ -173,18 +149,18 @@ export default function CommunityScreen() {
         <View style={styles.rankContainer}>
           {getRankIcon(item.rank)}
         </View>
-        
+
         <Image source={{ uri: item.avatar }} style={styles.leaderboardAvatar} />
-        
+
         <View style={styles.leaderboardInfo}>
           <Text style={styles.leaderboardName}>{item.name}</Text>
           <Text style={styles.leaderboardStats}>
-            {item.plantsGrown} plants grown
+            {item.plants_grown} plants grown
           </Text>
         </View>
-        
+
         <View style={styles.pointsContainer}>
-          <Text style={styles.ecoPoints}>{item.ecoPoints}</Text>
+          <Text style={styles.ecoPoints}>{item.eco_points}</Text>
           <Text style={styles.pointsLabel}>eco points</Text>
         </View>
       </View>
@@ -194,6 +170,7 @@ export default function CommunityScreen() {
   // Prepare posts data for FlashList
   const posts = data?.pages.flatMap((page: any) => page.posts) || [];
   const isEmpty = !isLoading && posts.length === 0;
+  const isLeaderboardEmpty = !lbLoading && (!leaderboard || leaderboard.length === 0);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -293,13 +270,25 @@ export default function CommunityScreen() {
           />
         )
       ) : (
-        <FlashList
-          data={mockLeaderboard}
-          renderItem={renderLeaderboardItem}
-          estimatedItemSize={100}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.leaderboardContainer}
-        />
+        lbLoading ? (
+          <FeedSkeleton count={5} />
+        ) : lbError ? (
+          <ErrorToast
+            message={lbError.message || "Couldn't load leaderboard. Please try again."}
+            onRetry={handleRetryLeaderboard}
+            onDismiss={() => {}}
+          />
+        ) : isLeaderboardEmpty ? (
+          <EmptyFeed onRefresh={refetchLb} />
+        ) : (
+          <FlashList
+            data={leaderboard}
+            renderItem={renderLeaderboardItem}
+            estimatedItemSize={100}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.leaderboardContainer}
+          />
+        )
       )}
       
       {/* Comments Sheet */}

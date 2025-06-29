@@ -293,6 +293,14 @@ export default function CommunityScreen() {
           />
         )
       ) : (
+        <FlashList
+          data={mockLeaderboard}
+          renderItem={renderLeaderboardItem}
+          estimatedItemSize={100}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.leaderboardContainer}
+        />
+      )}
       
       {/* Comments Sheet */}
       {selectedPostId && (
@@ -301,14 +309,6 @@ export default function CommunityScreen() {
           isVisible={!!selectedPostId}
           onClose={handleCloseComments}
           autoFocus
-        />
-      )}
-        <FlashList
-          data={mockLeaderboard}
-          renderItem={renderLeaderboardItem}
-          estimatedItemSize={100}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.leaderboardContainer}
         />
       )}
     </SafeAreaView>

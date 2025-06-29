@@ -11,7 +11,7 @@ if (Platform.OS !== 'web') {
 }
 
 // ElevenLabs API configuration
-const ELEVEN_API_KEY = process.env.EXPO_PUBLIC_ELEVEN_API_KEY || 'sk_fb2ae970133b709e6d5a4e13e7833e01eaef023a1170ca01';
+const ELEVEN_API_KEY = process.env.EXPO_PUBLIC_ELEVEN_API_KEY;
 const VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam voice (male, American accent)
 const API_URL = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`;
 

@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from './useAuth';
 import { v4 as uuidv4 } from 'uuid';
 import { Platform } from 'react-native';
 
@@ -23,12 +24,18 @@ export interface NewPostPayload {
 
 export function useCreatePost() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ photoUri, caption }: NewPostPayload) => {
+      if (!user) {
+        throw new Error('User must be authenticated');
+      }
+
       // 1. Upload photo to storage
       const fileExt = photoUri.split('.').pop() || 'jpg';
       const fileName = `${uuidv4()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
       
       // Prepare file for upload
       let file;
@@ -68,14 +75,14 @@ export function useCreatePost() {
           uri: photoUri,
           name: fileName,
           type: `image/${fileExt}`,
-        };
+        } as any;
       }
       
       // Upload to Supabase Storage
       const { data: uploadData, error: upErr } = await supabase
         .storage
-        .from('post-photos')
-        .upload(fileName, file, {
+        .from('posts')
+        .upload(filePath, file, {
           cacheControl: 'public, max-age=604800', // 7 days
           contentType: `image/${fileExt}`,
         });
@@ -88,13 +95,14 @@ export function useCreatePost() {
       // Get public URL for the uploaded image
       const { data: { publicUrl } } = supabase
         .storage
-        .from('post-photos')
+        .from('posts')
         .getPublicUrl(uploadData.path);
 
       // 2. Insert post record in database
       const { data, error } = await supabase
         .from('posts')
         .insert({
+          user_id: user.id,
           photo_url: publicUrl,
           caption,
         })

@@ -268,7 +268,7 @@ export default function PlantDetailScreen() {
         {/* Voice guide */}
         <Card style={styles.sectionCard}>
           <View style={styles.voiceHeader}>
-            <Text style={styles.sectionTitle}>Voice Guide</Text>
+            <Text style={styles.sectionTitle}>Tips</Text>
             <TouchableOpacity 
               style={[styles.playBtn, isPlaying && styles.playingBtn]} 
               onPress={playVoice}
@@ -283,9 +283,13 @@ export default function PlantDetailScreen() {
               )}
             </TouchableOpacity>
           </View>
-          <Text style={styles.voiceText}>
-            "Hi! Your {plant.nickname.toLowerCase()} is at {plant.growth_percent}% growth. {getVoiceGuideText(plant)}"
+          <Text style={styles.tipGreeting}>
+            {`Hi! Your ${plant.nickname.toLowerCase()} is at ${plant.growth_percent}% growth.`}
           </Text>
+
+          {plant.plant.tips.map(tip => (
+            <Text key={tip} style={styles.tipItem}>• {tip}</Text>
+          ))}
         </Card>
 
         {/* Analytics */}
@@ -481,7 +485,8 @@ const styles = StyleSheet.create({
   voiceHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   playBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   playingBtn: { backgroundColor: Colors.error },
-  voiceText: { ...Typography.body, color: Colors.textSecondary, lineHeight: 24, fontStyle: 'italic' },
+  tipGreeting: { ...Typography.body, color: Colors.textSecondary, lineHeight: 24, marginBottom: Spacing.sm },
+  tipItem: { ...Typography.bodySmall, color: Colors.textSecondary, marginBottom: Spacing.xs },
 
   /* danger zone */
   dangerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

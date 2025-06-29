@@ -1,49 +1,53 @@
-import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
 
-interface UseAvatarUploadResult {
-  uploadAvatar: () => Promise<string | null>;
-  isLoading: boolean;
-  error: string | null;
-}
+type UploadSource = 'camera' | 'library';
 
-export function useAvatarUpload(): UseAvatarUploadResult {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function useAvatarUpload() {
   const { user } = useAuth();
 
-  const uploadAvatar = async (): Promise<string | null> => {
-    if (!user) {
-      setError('You must be logged in to upload an avatar');
-      return null;
-    }
+  const uploadAvatar = useMutation({
+    mutationFn: async (source: UploadSource): Promise<string> => {
+      if (!user) {
+        throw new Error('You must be logged in to upload an avatar');
+      }
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
       // Request permissions
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (!permissionResult.granted) {
-        setError('Permission to access gallery was denied');
-        return null;
+        throw new Error('Permission to access gallery was denied');
       }
 
-      // Pick image
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
+      let result;
+
+      if (source === 'camera') {
+        // Request camera permissions
+        const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!cameraPermission.granted) {
+          throw new Error('Permission to access camera was denied');
+        }
+
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+      }
 
       if (result.canceled || !result.assets || result.assets.length === 0) {
-        setIsLoading(false);
-        return null;
+        throw new Error('Image selection was cancelled');
       }
 
       const imageUri = result.assets[0].uri;
@@ -65,8 +69,7 @@ export function useAvatarUpload(): UseAvatarUploadResult {
 
       if (uploadError) {
         console.error('Avatar upload error:', uploadError);
-        setError('Failed to upload avatar');
-        return null;
+        throw new Error('Failed to upload avatar');
       }
 
       // Get public URL
@@ -84,23 +87,16 @@ export function useAvatarUpload(): UseAvatarUploadResult {
 
       if (updateError) {
         console.error('Profile update error:', updateError);
-        setError('Failed to update profile');
-        return null;
+        throw new Error('Failed to update profile');
       }
 
       return publicUrl;
-    } catch (err) {
-      console.error('Error in avatar upload:', err);
-      setError('An unexpected error occurred');
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+  });
 
   return {
     uploadAvatar,
-    isLoading,
-    error
+    isLoading: uploadAvatar.isPending,
+    error: uploadAvatar.error?.message || null
   };
 }

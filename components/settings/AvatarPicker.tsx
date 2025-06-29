@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
@@ -25,8 +26,7 @@ export function AvatarPicker({
   onAvatarChange,
   disabled = false,
 }: AvatarPickerProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const { uploadAvatar } = useAvatarUpload();
+  const { uploadAvatar, isLoading } = useAvatarUpload();
 
   const handleAvatarPress = () => {
     if (disabled || isLoading) return;
@@ -59,27 +59,21 @@ export function AvatarPicker({
 
   const handleTakePhoto = async () => {
     try {
-      setIsLoading(true);
       const publicUrl = await uploadAvatar.mutateAsync('camera');
       onAvatarChange?.(publicUrl);
     } catch (error) {
       Alert.alert('Error', 'Failed to take photo. Please try again.');
       console.error(error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handlePickFromGallery = async () => {
     try {
-      setIsLoading(true);
       const publicUrl = await uploadAvatar.mutateAsync('library');
       onAvatarChange?.(publicUrl);
     } catch (error) {
       Alert.alert('Error', 'Failed to select image. Please try again.');
       console.error(error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -95,7 +89,7 @@ export function AvatarPicker({
           { width: size, height: size, borderRadius: size / 2 },
         ]}
         onPress={handleAvatarPress}
-        disabled={disabled || isLoading || uploadAvatar.isPending}
+        disabled={disabled || isLoading}
         accessibilityLabel="Edit profile picture"
         accessibilityRole="button"
         accessibilityHint="Tap to change your profile picture"
@@ -122,9 +116,15 @@ export function AvatarPicker({
         )}
         
         {/* Edit button overlay */}
-        <View style={styles.editButton}>
-          <Pencil size={16} color={Colors.white} />
-        </View>
+        {isLoading ? (
+          <View style={styles.loadingButton}>
+            <ActivityIndicator size="small" color={Colors.white} />
+          </View>
+        ) : (
+          <View style={styles.editButton}>
+            <Pencil size={16} color={Colors.white} />
+          </View>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -152,6 +152,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   editButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: Colors.primary,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.white,
+  },
+  loadingButton: {
     position: 'absolute',
     bottom: 0,
     right: 0,

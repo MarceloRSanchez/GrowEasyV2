@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToast } from '@/hooks/useToast';
+import { Toast } from '@/components/ui/Toast';
 import { useNotifications } from '@/hooks/useNotifications';
 import { router } from 'expo-router';
 import { User, Bell, Leaf, Globe, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Camera, Moon, Smartphone } from 'lucide-react-native';

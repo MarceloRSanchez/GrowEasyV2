@@ -20,9 +20,36 @@ export function useCreatePost() {
       // Prepare file for upload
       let file;
       if (Platform.OS === 'web') {
-        // For web, fetch the file and convert to blob
-        const response = await fetch(photoUri);
-        file = await response.blob();
+        // For web, handle different URI types
+        if (photoUri.startsWith('data:')) {
+          // Handle data URLs
+          const response = await fetch(photoUri);
+          file = await response.blob();
+        } else if (photoUri.startsWith('blob:')) {
+          // Handle blob URLs using XMLHttpRequest
+          file = await new Promise<Blob>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', photoUri, true);
+            xhr.responseType = 'blob';
+            xhr.onload = () => {
+              if (xhr.status === 200) {
+                resolve(xhr.response);
+              } else {
+                reject(new Error(`Failed to load image: ${xhr.status}`));
+              }
+            };
+            xhr.onerror = () => reject(new Error('Network error loading image'));
+            xhr.send();
+          });
+        } else {
+          // Fallback: try direct fetch for other URLs
+          try {
+            const response = await fetch(photoUri);
+            file = await response.blob();
+          } catch (error) {
+            throw new Error('Unable to process image. Please try selecting a different image.');
+          }
+        }
       } else {
         // For native, use the URI directly
         file = {

@@ -3,6 +3,19 @@ import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { Platform } from 'react-native';
 
+// Helper function to convert data URL to Blob
+function dataURLtoBlob(dataURL: string): Blob {
+  const arr = dataURL.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+}
+
 export interface NewPostPayload {
   photoUri: string;
   caption: string;
@@ -22,9 +35,8 @@ export function useCreatePost() {
       if (Platform.OS === 'web') {
         // For web, handle different URI types
         if (photoUri.startsWith('data:')) {
-          // Handle data URLs
-          const response = await fetch(photoUri);
-          file = await response.blob();
+          // Handle data URLs by converting directly to Blob
+          file = dataURLtoBlob(photoUri);
         } else if (photoUri.startsWith('blob:')) {
           // Handle blob URLs using XMLHttpRequest
           file = await new Promise<Blob>((resolve, reject) => {

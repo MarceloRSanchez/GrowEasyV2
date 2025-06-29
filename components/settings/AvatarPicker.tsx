@@ -26,7 +26,7 @@ export function AvatarPicker({
   disabled = false,
 }: AvatarPickerProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const { pickImage, uploadAvatar } = useAvatarUpload();
+  const { uploadAvatar } = useAvatarUpload();
 
   const handleAvatarPress = () => {
     if (disabled || isLoading) return;
@@ -60,12 +60,8 @@ export function AvatarPicker({
   const handleTakePhoto = async () => {
     try {
       setIsLoading(true);
-      const imageUri = await pickImage('camera');
-      
-      if (imageUri) {
-        const publicUrl = await uploadAvatar.mutateAsync(imageUri);
-        onAvatarChange?.(publicUrl);
-      }
+      const publicUrl = await uploadAvatar.mutateAsync('camera');
+      onAvatarChange?.(publicUrl);
     } catch (error) {
       Alert.alert('Error', 'Failed to take photo. Please try again.');
       console.error(error);
@@ -77,12 +73,8 @@ export function AvatarPicker({
   const handlePickFromGallery = async () => {
     try {
       setIsLoading(true);
-      const imageUri = await pickImage('library');
-      
-      if (imageUri) {
-        const publicUrl = await uploadAvatar.mutateAsync(imageUri);
-        onAvatarChange?.(publicUrl);
-      }
+      const publicUrl = await uploadAvatar.mutateAsync('library');
+      onAvatarChange?.(publicUrl);
     } catch (error) {
       Alert.alert('Error', 'Failed to select image. Please try again.');
       console.error(error);
@@ -103,7 +95,7 @@ export function AvatarPicker({
           { width: size, height: size, borderRadius: size / 2 },
         ]}
         onPress={handleAvatarPress}
-        disabled={disabled || isLoading}
+        disabled={disabled || isLoading || uploadAvatar.isPending}
         accessibilityLabel="Edit profile picture"
         accessibilityRole="button"
         accessibilityHint="Tap to change your profile picture"

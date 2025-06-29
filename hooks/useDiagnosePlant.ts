@@ -79,13 +79,17 @@ export function useDiagnosePlant() {
       // Strip markdown code-block
       const json = JSON.parse(txt.replace(/```json|```/g, '').trim());
       
+      // Validate and ensure we have a valid status
+      const validStatuses = ['healthy', 'warning', 'critical'];
+      const status = validStatuses.includes(json.status) ? json.status : 'warning';
+      
       // 3. Insert diagnosis record in database
       const { data: row, error: dbErr } = await supabase
         .from('plant_diagnoses')
         .insert({
           user_id: user.id,
           image_url: publicUrl,
-          status: json.status,
+          status: status,
           resume: json.resume,
           description: json.description,
         })

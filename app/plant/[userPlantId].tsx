@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,7 @@ import { useLogFertilizing } from '@/hooks/useLogFertilizing';
 import { useLogHarvest } from '@/hooks/useLogHarvest';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/hooks/useAuth';
+import { speak, unloadSound } from '@/lib/tts';
 import { ConfettiCannon, ConfettiCannonRef } from '@/components/ui/ConfettiCannon';
 import { Toast } from '@/components/ui/Toast';
 import {
@@ -51,6 +52,7 @@ import {
   ChevronDown,
   ChevronUp,
   Flame,
+  X,
 } from 'lucide-react-native';
 import { ActionButton } from '@/components/quickActions/ActionButton';
 // ==== CONSTANTS  ============================================================
@@ -75,6 +77,7 @@ export default function PlantDetailScreen() {
   const confettiRef = useRef<ConfettiCannonRef>(null);
   const [showError, setShowError] = useState(true);
   const [showDanger, setShowDanger] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   /*  ---------------- scroll animation ----------------  */
   const scrollY = useSharedValue(0);
@@ -95,6 +98,13 @@ export default function PlantDetailScreen() {
   const actionBarAnim = useAnimatedStyle(() => ({
     transform: [{ translateY: Math.max(-scrollY.value, 0) }],
   }));
+
+  // Clean up audio when component unmounts
+  useEffect(() => {
+    return () => {
+      unloadSound();
+    };
+  }, []);
 
   /*  ---------------- loading / error ----------------  */
   if (error && !data) {
@@ -146,7 +156,32 @@ export default function PlantDetailScreen() {
   };
 
   // voice guide
-  const playVoice = () => Alert.alert('Voice guide', 'Playing voice guide…');
+  const playVoice = async () => {
+    if (isPlaying) {
+      await unloadSound();
+      setIsPlaying(false);
+      return;
+    }
+    
+    setIsPlaying(true);
+    try {
+      const tipsText = plant.plant.tips.join('. ');
+      const voiceText = `Here are care tips for ${plant.nickname}. ${tipsText}`;
+      
+      const sound = await speak(voiceText);
+      
+      // Set up completion handler
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) {
+          setIsPlaying(false);
+        }
+      });
+    } catch (error) {
+      console.error('Error playing voice guide:', error);
+      setIsPlaying(false);
+      showToast('Failed to play voice guide', 'error');
+    }
+  };
 
   /*  ---------------- render ----------------  */
   return (
@@ -229,8 +264,18 @@ export default function PlantDetailScreen() {
         <Card style={styles.sectionCard}>
           <View style={styles.voiceHeader}>
             <Text style={styles.sectionTitle}>Voice Guide</Text>
-            <TouchableOpacity style={styles.playBtn} onPress={playVoice}>
-              <Play size={20} color="#fff" />
+            <TouchableOpacity 
+              style={[styles.playBtn, isPlaying && styles.playingBtn]} 
+              onPress={playVoice}
+              accessibilityLabel={isPlaying ? "Stop voice guide" : "Play voice guide"}
+              accessibilityHint={isPlaying ? "Stop the currently playing voice guide" : "Listen to care tips for this plant"}
+              accessibilityRole="button"
+            >
+              {isPlaying ? (
+                <X size={20} color="#fff" />
+              ) : (
+                <Play size={20} color="#fff" />
+              )}
             </TouchableOpacity>
           </View>
           <Text style={styles.voiceText}>
@@ -430,6 +475,7 @@ const styles = StyleSheet.create({
   /* voice guide */
   voiceHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   playBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  playingBtn: { backgroundColor: Colors.error },
   voiceText: { ...Typography.body, color: Colors.textSecondary, lineHeight: 24, fontStyle: 'italic' },
 
   /* danger zone */

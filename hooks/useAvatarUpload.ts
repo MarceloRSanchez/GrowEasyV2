@@ -76,8 +76,8 @@ export function useAvatarUpload() {
       }
 
       // Prepare file for upload
-      const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `${user.id}.${fileExt}`;
+      // Use just the user ID as the filename to match the RLS policy
+      const fileName = `${user.id}`;
       
       let file;
       if (Platform.OS === 'web') {
@@ -89,7 +89,7 @@ export function useAvatarUpload() {
         file = {
           uri,
           name: fileName,
-          type: `image/${fileExt}`,
+          type: 'image/jpeg',
         };
       }
       
@@ -97,7 +97,7 @@ export function useAvatarUpload() {
       const { error: uploadError } = await supabase
         .storage
         .from('avatars')
-        .upload(fileName, file, {
+        .upload(`${fileName}`, file, {
           cacheControl: '3600',
           upsert: true,
         });

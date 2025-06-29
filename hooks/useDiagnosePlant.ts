@@ -83,6 +83,7 @@ export function useDiagnosePlant() {
       const { data: row, error: dbErr } = await supabase
         .from('plant_diagnoses')
         .insert({
+          user_id: user.id,
           image_url: publicUrl,
           status: json.status,
           resume: json.resume,

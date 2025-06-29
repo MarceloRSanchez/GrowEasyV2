@@ -17,13 +17,18 @@ interface UseFeedPostsOptions {
   pageSize?: number;
 }
 
+interface FeedPage {
+  posts: Post[];
+  nextPage?: number;
+}
+
 export function useFeedPosts({ pageSize = 20 }: UseFeedPostsOptions = {}) {
   return useInfiniteQuery({
     queryKey: ['feedPosts'],
     queryFn: async ({ pageParam = 0 }) => {
       const { data, error } = await supabase.rpc('get_feed_posts', {
         p_limit: pageSize,
-        p_offset: pageParam,
+        p_offset: pageParam as number,
       });
 
       if (error) {
@@ -32,9 +37,10 @@ export function useFeedPosts({ pageSize = 20 }: UseFeedPostsOptions = {}) {
 
       return {
         posts: data as Post[],
-        nextPage: data.length === pageSize ? pageParam + pageSize : undefined,
+        nextPage: data.length === pageSize ? (pageParam as number) + pageSize : undefined,
       };
     },
+    initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: 1000 * 60, // 1 minute
     gcTime: 1000 * 60 * 5, // 5 minutes

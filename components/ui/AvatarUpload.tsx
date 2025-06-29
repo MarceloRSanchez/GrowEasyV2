@@ -1,8 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { useAvatarUpload } from '@/hooks/useAvatarUpload';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
+import { Camera } from 'lucide-react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
-import { Camera, User } from 'lucide-react-native';
+import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 
 interface AvatarUploadProps {
   currentAvatarUrl?: string | null;
@@ -10,12 +17,12 @@ interface AvatarUploadProps {
   size?: number;
 }
 
-export function AvatarUpload({ 
-  currentAvatarUrl, 
+export function AvatarUpload({
+  currentAvatarUrl,
   onAvatarChange,
-  size = 80 
+  size = 80,
 }: AvatarUploadProps) {
-  const { uploadAvatar, uploading, error } = useAvatarUpload();
+  const { uploadAvatar, isLoading, error } = useAvatarUpload();
 
   const handleUpload = async () => {
     const url = await uploadAvatar();
@@ -24,26 +31,31 @@ export function AvatarUpload({
     }
   };
 
+  const defaultAvatarUrl = 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=400';
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={[styles.avatarContainer, { width: size, height: size, borderRadius: size / 2 }]} 
+      <TouchableOpacity
+        style={[
+          styles.avatarContainer,
+          { width: size, height: size, borderRadius: size / 2 },
+        ]}
         onPress={handleUpload}
-        disabled={uploading}
+        disabled={isLoading}
       >
-        {uploading ? (
-          <ActivityIndicator size="small" color={Colors.primary} />
-        ) : currentAvatarUrl ? (
-          <Image 
-            source={{ uri: currentAvatarUrl }} 
-            style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]} 
-          />
-        ) : (
-          <User size={size * 0.5} color={Colors.textMuted} />
-        )}
-        
-        <View style={styles.cameraIconContainer}>
-          <Camera size={size * 0.25} color={Colors.white} />
+        <Image
+          source={{ uri: currentAvatarUrl || defaultAvatarUrl }}
+          style={[
+            styles.avatar,
+            { width: size, height: size, borderRadius: size / 2 },
+          ]}
+        />
+        <View style={styles.uploadIconContainer}>
+          {isLoading ? (
+            <ActivityIndicator size="small" color={Colors.white} />
+          ) : (
+            <Camera size={size / 4} color={Colors.white} />
+          )}
         </View>
       </TouchableOpacity>
       
@@ -59,25 +71,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarContainer: {
-    backgroundColor: Colors.bgLight,
-    justifyContent: 'center',
-    alignItems: 'center',
+    position: 'relative',
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: Colors.border,
+    backgroundColor: Colors.bgLight,
   },
   avatar: {
     resizeMode: 'cover',
   },
-  cameraIconContainer: {
+  uploadIconContainer: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     backgroundColor: Colors.primary,
-    padding: 4,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: Colors.white,
+    padding: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+    margin: 2,
   },
   errorText: {
     ...Typography.bodySmall,

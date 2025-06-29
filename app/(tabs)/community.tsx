@@ -25,6 +25,7 @@ import {
   TrendingUp,
 } from 'lucide-react-native';
 import { useEffect } from 'react';
+import { router } from 'expo-router';
 
 type ViewableItemsChangedInfo = {
   viewableItems: ViewToken[];
@@ -87,7 +88,7 @@ export default function CommunityScreen() {
   const onViewableItemsChanged = React.useCallback(
     ({ viewableItems }: ViewableItemsChangedInfo) => {
       viewableItems.forEach(viewableItem => {
-        if (viewableItem.isViewable && viewableItem.item) {
+        if (viewableItem.isViewable && viewableItem.item && viewableItem.item.id) {
           // Log post view analytics
           console.log('Analytics: post_viewed', { postId: viewableItem.item.id });
         }

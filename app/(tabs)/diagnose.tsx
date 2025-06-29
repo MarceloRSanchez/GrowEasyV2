@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -53,6 +53,16 @@ const mockDiagnosisHistory: DiagnosisHistory[] = [
 export default function DiagnoseScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleTakePhoto = () => {
     Alert.alert(
@@ -73,13 +83,14 @@ export default function DiagnoseScreen() {
   const handleAnalyze = () => {
     setIsAnalyzing(true);
     // Simulate AI analysis
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       setIsAnalyzing(false);
       Alert.alert(
         'Analysis Complete',
         'Your plant appears healthy! No issues detected.',
         [{ text: 'View Details' }]
       );
+      timeoutRef.current = null;
     }, 3000);
   };
 

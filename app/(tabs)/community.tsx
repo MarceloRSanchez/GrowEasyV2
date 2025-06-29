@@ -182,7 +182,7 @@ export default function CommunityScreen() {
   );
 
   // Prepare posts data for FlashList
-  const posts = data?.pages.flatMap(page => page.posts) || [];
+  const posts = data?.pages.flatMap((page: any) => page.posts) || [];
   const isEmpty = !isLoading && posts.length === 0;
 
   return (
@@ -246,7 +246,7 @@ export default function CommunityScreen() {
         ) : (
           <FlashList
             data={posts}
-            renderItem={({ item }) => (
+            renderItem={({ item }: { item: any }) => (
               <PostCard
                 post={item}
                 onLike={handleLike}
@@ -256,7 +256,7 @@ export default function CommunityScreen() {
               />
             )}
             estimatedItemSize={400}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item: any) => item.id}
             contentContainerStyle={styles.feedContainer}
             onEndReached={() => {
               if (hasNextPage && !isFetchingNextPage) {

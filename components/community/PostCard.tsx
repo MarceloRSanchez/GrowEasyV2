@@ -5,11 +5,13 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  Dimensions,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
-import { Heart, MessageCircle, Share } from 'lucide-react-native';
+import { Heart, MessageCircle, Share, Clock } from 'lucide-react-native';
 import { Post } from '@/hooks/useFeedPosts';
+import { formatDistanceToNow } from 'date-fns';
 
 interface PostCardProps {
   post: Post;
@@ -19,14 +21,29 @@ interface PostCardProps {
   isLiked?: boolean;
 }
 
-const { width } = Dimensions.get('window');
-const IMAGE_HEIGHT = (width - Spacing.md * 2) * 1.25; // 4:5 aspect ratio
-
 export function PostCard({ post, onLike, onComment, onShare, isLiked = false }: PostCardProps) {
-  const formattedDate = new Date(post.created_at).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
+  const { width } = useWindowDimensions();
+  
+  // Determine image height based on device width
+  const getImageHeight = () => {
+    if (Platform.OS !== 'web') {
+      return 300; // Fixed height for mobile
+    }
+    
+    // Responsive heights for web
+    if (width < 768) {
+      return 300; // Mobile web
+    } else if (width < 1024) {
+      return width * 0.4; // Tablet
+    } else {
+      return width * 0.4; // Desktop (max 40% of viewport width)
+    }
+  };
+  
+  const imageHeight = getImageHeight();
+  
+  // Format the date as "X time ago"
+  const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
 
   return (
     <View style={styles.container}>
@@ -44,13 +61,16 @@ export function PostCard({ post, onLike, onComment, onShare, isLiked = false }: 
           </View>
           <Text style={styles.username}>{post.username}</Text>
         </View>
-        <Text style={styles.date}>{formattedDate}</Text>
+        <View style={styles.dateContainer}>
+          <Clock size={14} color={Colors.textMuted} />
+          <Text style={styles.date}>{timeAgo}</Text>
+        </View>
       </View>
 
       {/* Image */}
       <Image
         source={{ uri: post.photo_url }}
-        style={styles.image}
+        style={[styles.image, { height: imageHeight }]}
         accessibilityLabel="Post image"
       />
 
@@ -70,9 +90,9 @@ export function PostCard({ post, onLike, onComment, onShare, isLiked = false }: 
           <Text style={styles.actionText}>{post.likes_count}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton} 
-          onPress={() => onComment?.(post.id)}
+          onPress={() => onComment?.(post.id)} 
           accessibilityLabel="Comment on post"
           accessibilityRole="button"
         >
@@ -144,15 +164,20 @@ const styles = StyleSheet.create({
   username: {
     ...Typography.body,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    color: Colors.textPrimary, 
+    marginLeft: Spacing.xs,
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   date: {
     ...Typography.bodySmall,
     color: Colors.textMuted,
+    marginLeft: 4,
   },
   image: {
     width: '100%',
-    height: IMAGE_HEIGHT,
     resizeMode: 'cover',
   },
   actions: {
@@ -169,7 +194,7 @@ const styles = StyleSheet.create({
   actionText: {
     ...Typography.bodySmall,
     color: Colors.textMuted,
-    marginLeft: Spacing.xs,
+    marginLeft: 4,
   },
   captionContainer: {
     padding: Spacing.md,
@@ -177,6 +202,6 @@ const styles = StyleSheet.create({
   caption: {
     ...Typography.body,
     color: Colors.textPrimary,
-    lineHeight: 22,
+    lineHeight: 24,
   },
 });

@@ -13,6 +13,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { ErrorToast } from '@/components/ui/ErrorToast';
 import { PostCard } from '@/components/community/PostCard';
+import { CommentsSheet } from '@/components/community/CommentsSheet';
 import { FeedSkeleton } from '@/components/community/FeedSkeleton';
 import { EmptyFeed } from '@/components/community/EmptyFeed';
 import { useFeedPosts } from '@/hooks/useFeedPosts';
@@ -71,6 +72,7 @@ const mockLeaderboard: LeaderboardUser[] = [
 export default function CommunityScreen() {
   const [activeTab, setActiveTab] = useState<'feed' | 'leaderboard'>('feed');
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set()); 
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [showError, setShowError] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
   
@@ -129,6 +131,14 @@ export default function CommunityScreen() {
       newLikedPosts.add(postId);
     }
     setLikedPosts(newLikedPosts);
+  };
+
+  const handleOpenComments = (postId: string) => {
+    setSelectedPostId(postId);
+  };
+
+  const handleCloseComments = () => {
+    setSelectedPostId(null);
   };
 
   const handleRefresh = async () => {
@@ -250,7 +260,7 @@ export default function CommunityScreen() {
               <PostCard
                 post={item}
                 onLike={handleLike}
-                onComment={(id) => console.log('Comment on post', id)}
+                onComment={handleOpenComments}
                 onShare={(id) => console.log('Share post', id)}
                 isLiked={likedPosts.has(item.id)}
               />
@@ -283,6 +293,16 @@ export default function CommunityScreen() {
           />
         )
       ) : (
+      
+      {/* Comments Sheet */}
+      {selectedPostId && (
+        <CommentsSheet
+          postId={selectedPostId}
+          isVisible={!!selectedPostId}
+          onClose={handleCloseComments}
+          autoFocus
+        />
+      )}
         <FlashList
           data={mockLeaderboard}
           renderItem={renderLeaderboardItem}

@@ -55,7 +55,6 @@ import {
   ChevronUp,
   Flame,
   X,
-  Droplets,
   Sun,
 } from 'lucide-react-native';
 import { ActionButton } from '@/components/quickActions/ActionButton';

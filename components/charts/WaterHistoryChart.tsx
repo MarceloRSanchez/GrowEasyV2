@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { BarChart, Grid, Line } from 'react-native-svg-charts';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { startOfWeek, format, parseISO } from 'date-fns';
+import dayjs from 'dayjs';
 import { EmptyState } from '@/components/empty/EmptyState';
 
 const { width } = Dimensions.get('window');
@@ -22,12 +23,6 @@ interface WaterHistoryChartProps {
 export function WaterHistoryChart({ data, onQuickWater, loading, error }: WaterHistoryChartProps) {
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return [];
-    
-    return data.map(item => ({
-      value: item.ml,
-      label: dayjs(item.date).format('DD MMM'),
-      svg: { fill: Colors.accent },
-    }));
     
     // Group data by week
     const weeklyData = data.reduce((acc, item) => {

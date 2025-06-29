@@ -11,7 +11,7 @@
 */
 
 -- Enable the storage extension if not already enabled
-CREATE EXTENSION IF NOT EXISTS "pg_storage";
+--CREATE EXTENSION IF NOT EXISTS "pg_storage";
 
 -- Create storage bucket for post photos if it doesn't exist
 SELECT storage.create_bucket('post-photos', 'Public bucket for post photos', 'public');

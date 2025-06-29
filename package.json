@@ -41,7 +41,7 @@
     "lucide-react-native": "^0.475.0",
     "@shopify/flash-list": "^1.6.3",
     "expo-image-picker": "~15.0.7",
-    "expo-image-manipulator": "~12.1.0",
+    "expo-image-manipulator": "~13.0.0",
     "uuid": "^9.0.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",

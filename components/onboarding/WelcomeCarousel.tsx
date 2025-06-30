@@ -9,10 +9,11 @@ import {
   Animated,
   Easing,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Colors, OnboardingColors, OnboardingTypography, Spacing, BorderRadius } from '@/constants/Colors';
+import { Colors, OnboardingColors, OnboardingTypography, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Button } from '@/components/ui/Button';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import * as Haptics from 'expo-haptics';
@@ -129,13 +130,13 @@ export function WelcomeCarousel() {
           toValue: 1,
           duration: 2000,
           useNativeDriver: true,
-          easing: Easing.inOut(Easing.sine),
+          easing: Easing.inOut(Easing.sin),
         }),
         Animated.timing(floatAnim, {
           toValue: 0,
           duration: 2000,
           useNativeDriver: true,
-          easing: Easing.inOut(Easing.sine),
+          easing: Easing.inOut(Easing.sin),
         }),
       ])
     ).start();
@@ -192,6 +193,19 @@ export function WelcomeCarousel() {
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
         
+        {/* Bolt Logo */}
+          <TouchableOpacity 
+            style={styles.boltContainer}
+            onPress={() => Linking.openURL('https://bolt.new/')}
+            accessibilityRole="button"
+            accessibilityLabel="Visit Bolt.new"
+          >
+            <Image 
+              source={require('@/assets/images/bolt_logo.png')}
+              style={styles.boltLogo}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
         <Text style={styles.pageIndicator}>{currentPage + 1}/{slides.length}</Text>
       </View>
 
@@ -399,5 +413,16 @@ const styles = StyleSheet.create({
   },
   nextButtonText: {
     marginRight: Spacing.xs,
+  },
+  boltContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+    paddingVertical: Spacing.md,
+  },
+  boltLogo: {
+    width: 70,
+    height: 70,
+    opacity: 0.6,
+    zIndex: 1000,
   },
 });

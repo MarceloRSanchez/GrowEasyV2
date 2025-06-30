@@ -8,6 +8,7 @@ import {
   Switch,
   Image,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
@@ -314,7 +315,19 @@ export default function SettingsScreen() {
             style={[styles.logoutButton, { borderColor: Colors.error }]}
           />
         </View>
-
+        {/* Bolt Logo */}
+        <TouchableOpacity 
+            style={styles.boltContainer}
+            onPress={() => Linking.openURL('https://bolt.new/')}
+            accessibilityRole="button"
+            accessibilityLabel="Visit Bolt.new"
+          >
+            <Image 
+              source={require('@/assets/images/bolt_logo.png')}
+              style={styles.boltLogo}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
         {/* App Version */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>GrowEasy v1.0.0</Text>
@@ -520,5 +533,15 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  boltContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+    paddingVertical: Spacing.md,
+  },
+  boltLogo: {
+    width: 60,
+    height: 60,
+    opacity: 0.6,
   },
 });

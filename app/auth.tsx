@@ -11,6 +11,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -321,17 +322,7 @@ export default function AuthScreen() {
               style={[styles.authButton, { backgroundColor: OnboardingColors.login.primary }]}
             />
             
-            {/* Demo Account Button */}
-            {!isSignUp && (
-              <Button
-                title={t('auth.tryDemoAccount')}
-                onPress={handleDemoLogin}
-                variant="outline"
-                size="large"
-                style={styles.demoButton}
-                textStyle={{ color: OnboardingColors.login.primary }}
-              />
-            )}
+  
           </View>
 
           {/* Toggle Sign Up / Sign In */}
@@ -355,6 +346,20 @@ export default function AuthScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Bolt Logo */}
+          <TouchableOpacity 
+            style={styles.boltContainer}
+            onPress={() => Linking.openURL('https://bolt.new/')}
+            accessibilityRole="button"
+            accessibilityLabel="Visit Bolt.new"
+          >
+            <Image 
+              source={require('@/assets/images/bolt_logo.png')}
+              style={styles.boltLogo}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
         </Animated.View>
       </KeyboardAvoidingView>
       
@@ -473,5 +478,15 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: OnboardingColors.login.primary,
     fontWeight: '600',
+  },
+  boltContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+    paddingVertical: Spacing.md,
+  },
+  boltLogo: {
+    width: 60,
+    height: 60,
+    opacity: 0.6,
   },
 });

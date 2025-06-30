@@ -3,10 +3,14 @@ import { View, StyleSheet } from 'react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/Colors';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 
-export function SearchLoadingSkeleton() {
+export interface SearchLoadingSkeletonProps {
+  count?: number;
+}
+
+export function SearchLoadingSkeleton({ count = 3 }: SearchLoadingSkeletonProps) {
   return (
     <View style={styles.container}>
-      {[1, 2, 3, 4, 5].map((i) => (
+      {Array.from({ length: count }).map((_, i) => (
         <View key={i} style={styles.skeletonItem}>
           <LoadingSkeleton width={80} height={80} borderRadius={BorderRadius.sm} />
           <View style={styles.skeletonContent}>
@@ -27,6 +31,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.md,
     gap: Spacing.md,
+    paddingTop: Spacing.sm,
   },
   skeletonItem: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useDebounce } from './useDebounce';
 
@@ -23,6 +23,7 @@ interface UseSearchPlantsResult {
   results: PlantMeta[];
   isLoading: boolean;
   error: string | null;
+  totalCount: number;
   refetch: () => Promise<void>;
   fetchNextPage: () => Promise<void>;
   hasNextPage: boolean;
@@ -33,11 +34,44 @@ const SEARCH_LIMIT = 20;
 
 export function useSearchPlants(query: string): UseSearchPlantsResult {
   const debouncedQuery = useDebounce(query.trim(), 300);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [allResults, setAllResults] = useState<PlantMeta[]>([]);
   const [currentOffset, setCurrentOffset] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Function to get popular plants
+  const getPopularPlants = async (): Promise<PlantMeta[]> => {
+    const { data, error } = await supabase
+      .from('plants')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    return data || [];
+  };
+
+  // Function to get total count of search results
+  const getTotalCount = async (searchQuery: string): Promise<number> => {
+    if (!searchQuery) return 0;
+    
+    try {
+      const { data, error } = await supabase.rpc('search_plants_count', { 
+        q: searchQuery 
+      });
+      
+      if (error) throw error;
+      return data || 0;
+    } catch (error) {
+      console.error('Error getting total count:', error);
+      return 0;
+    }
+  };
 
   const searchPlants = async (searchQuery: string, offset: number = 0): Promise<PlantMeta[]> => {
     // Cancel previous request
@@ -80,11 +114,22 @@ export function useSearchPlants(query: string): UseSearchPlantsResult {
     error,
     refetch: refetchQuery,
   } = useQuery({
-    queryKey: ['searchPlants', debouncedQuery, currentOffset],
-    queryFn: () => searchPlants(debouncedQuery, 0), // Always start from 0 for new searches
-    enabled: !!debouncedQuery,
+    queryKey: debouncedQuery ? ['searchPlants', debouncedQuery] : ['popularPlants'],
+    queryFn: () => debouncedQuery ? searchPlants(debouncedQuery, 0) : getPopularPlants(),
+    enabled: true, // Always enabled to show popular plants by default
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  // Get total count when query changes
+  useEffect(() => {
+    if (debouncedQuery) {
+      getTotalCount(debouncedQuery).then(count => {
+        setTotalCount(count);
+      });
+    } else {
+      setTotalCount(0);
+    }
+  }, [debouncedQuery]);
 
   // Reset pagination when query changes
   useEffect(() => {
@@ -153,5 +198,6 @@ export function useSearchPlants(query: string): UseSearchPlantsResult {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    totalCount,
   };
 }

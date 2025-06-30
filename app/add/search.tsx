@@ -15,6 +15,7 @@ import { SearchBar } from '@/components/add/SearchBar';
 import { SearchLoadingSkeleton } from '@/components/add/SearchLoadingSkeleton';
 import { EmptySearchState } from '@/components/add/EmptySearchState';
 import { GlobalLoadingOverlay } from '@/components/ui/GlobalLoadingOverlay';
+import { Animated } from 'react-native';
 import { CancelConfirmDialog } from '@/components/ui/CancelConfirmDialog';
 import { ErrorToast } from '@/components/ui/ErrorToast';
 import { useSearchPlants } from '@/hooks/useSearchPlants';
@@ -81,10 +82,29 @@ function PlantListItem({ photoUrl, name, scientificName, category, difficulty, o
 export default function SearchPlantScreen() {
   const [query, setQuery] = useState('');
   const [showError, setShowError] = useState(true);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const { setSelectedPlant } = useAddWizard();
-  const { results, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSearchPlants(query);
+  const { 
+    results, 
+    isLoading, 
+    error, 
+    refetch, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage,
+    totalCount 
+  } = useSearchPlants(query);
 
+  // Fade in animation when results change
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [results]);
 
   const handlePlantSelect = (plant: any) => {
     // Convert search result to PlantSelection format
@@ -152,7 +172,7 @@ export default function SearchPlantScreen() {
   );
 
   const renderFooter = () => {
-    if (isFetchingNextPage) {
+    if (isFetchingNextPage && query) {
       return (
         <View style={styles.loadingFooter}>
           <ActivityIndicator size="small" color={Colors.primary} />
@@ -166,38 +186,53 @@ export default function SearchPlantScreen() {
   const renderContent = () => {
     // Show loading skeleton when searching
     if (isLoading && query) {
-      return <SearchLoadingSkeleton />;
+      return <SearchLoadingSkeleton count={5} />;
     }
 
     // Show empty state when no results
     if (query && !isLoading && results.length === 0) {
       return <EmptySearchState query={query} onRetry={refetch} />;
     }
-
-    // Show search prompt when no query
-    if (!query) {
-      return (
-        <View style={styles.searchPrompt}>
-          <Text style={styles.promptTitle}>Search for plants</Text>
-          <Text style={styles.promptSubtitle}>
-            Start typing to find plants for your garden
-          </Text>
-        </View>
-      );
-    }
-
-    // Show results
-    return (
-      <FlatList
-        data={results}
-        renderItem={renderPlantItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        onEndReached={handleEndReached}
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+          <View style={styles.resultsContainer}>
+            {/* Indicator of results */}
+            <View style={styles.resultsHeader}>
+              <Text style={styles.resultsCount}>
+                {query 
+                  ? `${results.length} plants found${hasNextPage ? '+' : ''}`
+                  : 'Popular plants'
+                }
+              </Text>
+              {query && totalCount > 0 && (
+                <Text style={styles.resultsHint}>
+                  {hasNextPage ? 'Scroll for more results' : 'All results shown'}
+                </Text>
+              )}
+            </View>
+            
+            <FlatList
+              data={results}
+              renderItem={renderPlantItem}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+              onEndReached={handleEndReached}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={renderFooter}
+            />
+          </View>
+        </Animated.View>
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
       />
+    // Fallback (shouldn't happen with popular plants)
+    return (
+      <View style={styles.searchPrompt}>
+        <Text style={styles.promptTitle}>Search for plants</Text>
+        <Text style={styles.promptSubtitle}>
+          Start typing to find specific plants
+        </Text>
+      </View>
     );
   };
 
@@ -226,7 +261,11 @@ export default function SearchPlantScreen() {
         <SearchBar
           value={query}
           onChange={setQuery}
-          placeholder="e.g. Basil, Tomato…"
+          placeholder={results.length > 0 && !query 
+            ? "Search among all plants..." 
+            : "e.g. Basil, Tomato…"
+          }
+          results={results}
         />
       </View>
 
@@ -285,6 +324,27 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.lg,
+  },
+  resultsContainer: {
+    flex: 1,
+  },
+  resultsHeader: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.bgLight,
+  },
+  resultsCount: {
+    ...Typography.bodySmall,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
+  resultsHint: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
   plantItem: {
     flexDirection: 'row',
@@ -373,7 +433,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.xs,
     gap: Spacing.sm,
   },
   loadingText: {

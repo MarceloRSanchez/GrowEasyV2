@@ -75,6 +75,9 @@ export default function DiagnoseScreen() {
       const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
       const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
       setCameraPermission(cameraStatus.status === 'granted');
+    })();
+  }, []);
+
   // Request permissions if needed
   const requestPermissions = async (type: 'camera' | 'gallery') => {
     if (type === 'camera') {
@@ -107,35 +110,6 @@ export default function DiagnoseScreen() {
       const granted = await requestPermissions('camera');
       if (!granted) {
         showToast('Camera permission is required to take photos', 'error');
-        return;
-      }
-    }
-    
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
-      
-      if (!result.canceled) {
-        const selectedAsset = result.assets[0];
-        
-        // Resize image to reduce file size
-        const manipResult = await ImageManipulator.manipulateAsync(
-          selectedAsset.uri,
-          [{ resize: { width: 1200 } }],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-        );
-        
-        setSelectedImage(manipResult.uri);
-        handleAnalyze(manipResult.uri);
-      }
-    } catch (error) {
-      console.error('Error taking photo:', error);
-      showToast('Failed to take photo. Please try again.', 'error');
-    }
         return;
       }
     }
@@ -202,44 +176,8 @@ export default function DiagnoseScreen() {
       console.error('Error selecting from gallery:', error);
       showToast('Failed to select image. Please try again.', 'error');
     }
-        return;
-      }
-    }
-    
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
-      
-      if (!result.canceled) {
-        const selectedAsset = result.assets[0];
-        
-        // Resize image to reduce file size
-        const manipResult = await ImageManipulator.manipulateAsync(
-          selectedAsset.uri,
-          [{ resize: { width: 1200 } }],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-        );
-        
-        setSelectedImage(manipResult.uri);
-        handleAnalyze(manipResult.uri);
-      }
-    } catch (error) {
-      console.error('Error selecting from gallery:', error);
-      showToast('Failed to select image. Please try again.', 'error');
-    }
   };
 
-  const handleAnalyze = async (uri: string) => {
-    try {
-      await diagnoseMutation.mutateAsync({ uri });
-      showToast('Plant diagnosis complete!', 'success');
-      setSelectedImage(null); // Reset selected image
-      refetchDiagnoses(); // Refresh diagnoses list
-    } catch (error) {
   const handleAnalyze = async (uri: string) => {
     try {
       await diagnoseMutation.mutateAsync({ uri });
@@ -299,7 +237,6 @@ export default function DiagnoseScreen() {
               variant="primary"
               style={styles.cameraButton}
               disabled={diagnoseMutation.isLoading}
-              disabled={diagnoseMutation.isLoading}
             />
             <Button
               title="From Gallery"
@@ -307,9 +244,9 @@ export default function DiagnoseScreen() {
               variant="outline"
               style={styles.cameraButton}
               disabled={diagnoseMutation.isLoading}
-              disabled={diagnoseMutation.isLoading}
             />
           </View>
+          <View>
             <Text style={styles.tip}>• Use natural lighting when possible</Text>
             <Text style={styles.tip}>• Focus on the affected leaves or areas</Text>
             <Text style={styles.tip}>• Keep the camera steady and close</Text>
@@ -349,6 +286,9 @@ export default function DiagnoseScreen() {
           ) : (
             <DiagnosisEmptyState onTakePhoto={handleTakePhoto} />
           )}
+        </View>
+      </ScrollView>
+
       <DiagnosisDetailSheet
         diagnosis={selectedDiagnosis}
         isVisible={!!selectedDiagnosis}

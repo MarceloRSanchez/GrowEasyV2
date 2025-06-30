@@ -15,7 +15,6 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { AnalysisLoading } from '@/components/diagnose/AnalysisLoading';
 import { useToast } from '@/hooks/useToast';
-import { Toast } from '@/components/ui/Toast';
 import { DiagnosisCard } from '@/components/diagnose/DiagnosisCard';
 import { DiagnosisDetailSheet } from '@/components/diagnose/DiagnosisDetailSheet';
 import { DiagnosisEmptyState } from '@/components/diagnose/DiagnosisEmptyState';

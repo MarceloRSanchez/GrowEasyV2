@@ -23,18 +23,7 @@ import { ConfettiCannon } from '@/components/ui/ConfettiCannon';
 import { useHomeSnapshot } from '@/hooks/useHomeSnapshot';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
-import { 
-  ArrowLeft, 
-  Search, 
-  Filter, 
-  SortAsc, 
-  SortDesc,
-  Droplets, 
-  Zap, 
-  Scissors, 
-  Clock,
-  Plus,
-} from 'lucide-react-native';
+import { ArrowLeft, Search, Filter, Import as SortAsc, Dessert as SortDesc, Droplets, Zap, Scissors, Clock, Plus } from 'lucide-react-native';
 
 type SortOption = 'name' | 'progress' | 'nextAction' | 'dateAdded';
 type FilterOption = 'all' | 'needsWater' | 'needsFertilizer' | 'readyHarvest';

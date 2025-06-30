@@ -82,7 +82,7 @@ export default function DiagnoseScreen() {
     
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images' as ImagePicker.MediaTypeOptions,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -119,7 +119,7 @@ export default function DiagnoseScreen() {
     
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images' as ImagePicker.MediaTypeOptions,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -202,14 +202,14 @@ export default function DiagnoseScreen() {
               onPress={handleTakePhoto} 
               variant="primary"
               style={styles.cameraButton}
-              disabled={diagnoseMutation.isLoading}
+              disabled={diagnoseMutation.isPending}
             />
             <Button
               title="From Gallery"
               onPress={handleSelectFromGallery}
               variant="outline"
               style={styles.cameraButton}
-              disabled={diagnoseMutation.isLoading}
+              disabled={diagnoseMutation.isPending}
             />
           </View>
           <View>
@@ -262,7 +262,7 @@ export default function DiagnoseScreen() {
         bottomSheetRef={bottomSheetRef}
       />
       
-      <AnalysisLoading visible={diagnoseMutation.isLoading} />
+      <AnalysisLoading visible={diagnoseMutation.isPending} />
       
       <ToastComponent
         message={toast.message}

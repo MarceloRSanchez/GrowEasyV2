@@ -32,6 +32,22 @@ interface UseSearchPlantsResult {
 
 const SEARCH_LIMIT = 20;
 
+const getPopularPlants = async (): Promise<PlantMeta[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('plants')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    if (error) throw new Error(error.message);
+    return data || [];
+  } catch (error: any) {
+    console.error('Error fetching popular plants:', error);
+    return [];
+  }
+};
+
 export function useSearchPlants(query: string): UseSearchPlantsResult {
   const debouncedQuery = useDebounce(query.trim(), 300);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -191,13 +207,13 @@ export function useSearchPlants(query: string): UseSearchPlantsResult {
   }, []);
 
   return {
-    results: debouncedQuery ? allResults : [],
-    isLoading: isLoading && !!debouncedQuery,
+    results: debouncedQuery ? allResults : (searchResults || []),
+    isLoading: isLoading,
     error: error?.message || null,
     refetch,
     fetchNextPage,
-    hasNextPage,
+    hasNextPage: debouncedQuery ? hasNextPage : false,
     isFetchingNextPage,
-    totalCount,
+    totalCount: debouncedQuery ? totalCount : 0,
   };
 }

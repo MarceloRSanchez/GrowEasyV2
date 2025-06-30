@@ -14,6 +14,7 @@ import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
+import { AnalysisLoading } from '@/components/diagnose/AnalysisLoading';
 import { useToast } from '@/hooks/useToast';
 import { DiagnosisCard } from '@/components/diagnose/DiagnosisCard';
 import { DiagnosisDetailSheet } from '@/components/diagnose/DiagnosisDetailSheet';
@@ -220,10 +221,9 @@ export default function DiagnoseScreen() {
           <View style={styles.cameraActions}>
             <Button
               title="Take Photo"
-              onPress={handleTakePhoto}
+              onPress={handleTakePhoto} 
               variant="primary"
               style={styles.cameraButton}
-              loading={diagnoseMutation.isLoading && selectedImage !== null}
               disabled={diagnoseMutation.isLoading}
             />
             <Button
@@ -231,7 +231,6 @@ export default function DiagnoseScreen() {
               onPress={handleSelectFromGallery}
               variant="outline"
               style={styles.cameraButton}
-              loading={diagnoseMutation.isLoading && selectedImage === null}
               disabled={diagnoseMutation.isLoading}
             />
           </View>
@@ -295,6 +294,8 @@ export default function DiagnoseScreen() {
       />
       
       {/* Toast */}
+      <AnalysisLoading visible={diagnoseMutation.isLoading} />
+      
       <Toast
         message={toast.message}
         type={toast.type}

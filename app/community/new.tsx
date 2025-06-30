@@ -47,7 +47,7 @@ export default function CreatePostScreen() {
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images' as ImagePicker.MediaTypeOptions,
         allowsEditing: true,
         aspect: [4, 5],
         quality: 0.8,
@@ -196,8 +196,8 @@ export default function CreatePostScreen() {
           <Button
             title="Post"
             onPress={handleSubmit}
-            disabled={!isFormValid || createPost.isLoading}
-            loading={createPost.isLoading}
+            disabled={!isFormValid || createPost.isPending}
+            loading={createPost.isPending}
             size="large"
             style={styles.postButton}
           />
@@ -206,7 +206,7 @@ export default function CreatePostScreen() {
 
       {/* Loading Overlay */}
       <GlobalLoadingOverlay
-        visible={createPost.isLoading}
+        visible={createPost.isPending}
         message="Uploading post..."
       />
     </SafeAreaView>

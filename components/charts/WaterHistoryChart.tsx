@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { BarChart, Grid, Line } from 'react-native-svg-charts';
+import { BarChart, Grid } from 'react-native-svg-charts';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { startOfWeek, format, parseISO } from 'date-fns';
 import dayjs from 'dayjs';
@@ -97,10 +97,10 @@ export function WaterHistoryChart({ data, onQuickWater, loading, error }: WaterH
           roundedCorners={4}
         >
           <Grid direction="HORIZONTAL" />
-          <Line
+          {/* <Line
             data={goalLineData}
             svg={{ stroke: '#E0E7FF', strokeWidth: 2, strokeDasharray: [6, 3] }}
-          />
+          /> */}
         </BarChart>
         
         {/* Goal line label */}

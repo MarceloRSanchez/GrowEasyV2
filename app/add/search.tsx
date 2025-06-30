@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -15,7 +16,6 @@ import { SearchBar } from '@/components/add/SearchBar';
 import { SearchLoadingSkeleton } from '@/components/add/SearchLoadingSkeleton';
 import { EmptySearchState } from '@/components/add/EmptySearchState';
 import { GlobalLoadingOverlay } from '@/components/ui/GlobalLoadingOverlay';
-import { Animated } from 'react-native';
 import { CancelConfirmDialog } from '@/components/ui/CancelConfirmDialog';
 import { ErrorToast } from '@/components/ui/ErrorToast';
 import { useSearchPlants } from '@/hooks/useSearchPlants';
@@ -438,7 +438,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.md,
-    gap: Spacing.xs,
     gap: Spacing.sm,
   },
   loadingText: {

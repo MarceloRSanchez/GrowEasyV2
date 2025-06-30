@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -193,6 +194,10 @@ export default function SearchPlantScreen() {
     if (query && !isLoading && results.length === 0) {
       return <EmptySearchState query={query} onRetry={refetch} />;
     }
+
+    // Show results
+    if (results.length > 0) {
+      return (
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <View style={styles.resultsContainer}>
             {/* Indicator of results */}
@@ -222,9 +227,9 @@ export default function SearchPlantScreen() {
             />
           </View>
         </Animated.View>
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={renderFooter}
-      />
+      );
+    }
+
     // Fallback (shouldn't happen with popular plants)
     return (
       <View style={styles.searchPrompt}>

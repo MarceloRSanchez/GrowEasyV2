@@ -3,6 +3,8 @@ import {
   View,
   TextInput,
   StyleSheet,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Search } from 'lucide-react-native';

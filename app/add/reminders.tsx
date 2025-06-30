@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -68,9 +68,13 @@ export default function ConfigureRemindersScreen() {
     fertilizing?: string;
   }>({});
 
+  useEffect(() => {
+    if (!selectedPlant) {
+      router.replace('/add/search');
+    }
+  }, [selectedPlant]);
   // Redirect if no plant selected
   if (!selectedPlant) {
-    router.replace('/add/search');
     return null;
   }
 

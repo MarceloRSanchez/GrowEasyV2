@@ -63,14 +63,14 @@ export function useDiagnosePlant() {
       const { data: { publicUrl } } = supabase
         .storage.from('diagnoses')
         .getPublicUrl(fileName);
-      
+      console.log("publicUrl: ", publicUrl);
       // 2. Call n8n webhook for diagnosis
       const res = await fetch('https://n8n.lubee.com.ar/webhook/plant-diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl: publicUrl }),
       });
-      
+      console.log("Supabase response: ",res);
       if (!res.ok) {
         throw new Error(`Diagnosis API error: ${res.status} ${res.statusText}`);
       }

@@ -2,7 +2,6 @@ export const Colors = {
   primary: '#32E177',
   accent: '#3DB5FF',
   secondary: '#F59E0B',
-  secondary: '#F59E0B',
   bgLight: '#F8FDFB',
   bgDark: '#121212',
   textPrimary: '#1A1A1A',
@@ -65,7 +64,7 @@ export const OnboardingColors = {
 export const OnboardingTypography = {
   heroTitle: {
     fontSize: 32,
-    fontWeight: '800',
+    fontWeight: '800' as const,
     lineHeight: 38,
     letterSpacing: -0.5,
     fontFamily: 'Inter-Bold',
@@ -73,7 +72,7 @@ export const OnboardingTypography = {
   
   slideTitle: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '700' as const,
     lineHeight: 34,
     letterSpacing: -0.3,
     fontFamily: 'Inter-Bold',
@@ -81,7 +80,7 @@ export const OnboardingTypography = {
   
   slideSubtitle: {
     fontSize: 16,
-    fontWeight: '400',
+    fontWeight: '400' as const,
     lineHeight: 24,
     letterSpacing: 0.1,
     opacity: 0.8,
@@ -90,7 +89,7 @@ export const OnboardingTypography = {
   
   loginTitle: {
     fontSize: 34,
-    fontWeight: '800',
+    fontWeight: '800' as const,
     lineHeight: 40,
     letterSpacing: -0.6,
     fontFamily: 'Inter-Bold',

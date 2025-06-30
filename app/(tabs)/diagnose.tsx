@@ -22,15 +22,6 @@ import { DiagnosisEmptyState } from '@/components/diagnose/DiagnosisEmptyState';
 import { useDiagnosePlant, DiagnosisResult } from '@/hooks/useDiagnosePlant';
 import { useUserDiagnoses, DiagnosisItem } from '@/hooks/useUserDiagnoses';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { Toast } from '@/components/ui/Toast';
-import { AnalysisLoading } from '@/components/diagnose/AnalysisLoading';
-import { useToast } from '@/hooks/useToast';
-import { DiagnosisCard } from '@/components/diagnose/DiagnosisCard';
-import { DiagnosisDetailSheet } from '@/components/diagnose/DiagnosisDetailSheet';
-import { DiagnosisEmptyState } from '@/components/diagnose/DiagnosisEmptyState';
-import { useDiagnosePlant, DiagnosisResult } from '@/hooks/useDiagnosePlant';
-import { useUserDiagnoses, DiagnosisItem } from '@/hooks/useUserDiagnoses';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Camera, Image as ImageIcon, Scan, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Circle as XCircle, Lightbulb } from 'lucide-react-native';
@@ -38,21 +29,7 @@ import { Camera, Image as ImageIcon, Scan, TriangleAlert as AlertTriangle, Circl
 export default function DiagnoseScreen() {
   // State
   const [selectedDiagnosis, setSelectedDiagnosis] = useState<DiagnosisItem | null>(null);
-  const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
-  const [galleryPermission, setGalleryPermission] = useState<boolean | null>(null);
-  
-  // Refs
-  const bottomSheetRef = useRef<BottomSheetModal>(null);
-  
-  // Hooks
-  const { toast, showToast, hideToast } = useToast();
-  const diagnoseMutation = useDiagnosePlant();
-  const { 
-    data: diagnoses, 
-    isLoading: diagnosesLoading, 
-    error: diagnosesError,
-    refetch: refetchDiagnoses
-  } = useUserDiagnoses();
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
   const [galleryPermission, setGalleryPermission] = useState<boolean | null>(null);
   
@@ -73,24 +50,13 @@ export default function DiagnoseScreen() {
   useEffect(() => {
     (async () => {
       const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
-      const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
       setCameraPermission(cameraStatus.status === 'granted');
+      
+      const galleryStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      setGalleryPermission(galleryStatus.status === 'granted');
     })();
   }, []);
 
-  // Request permissions if needed
-  const requestPermissions = async (type: 'camera' | 'gallery') => {
-    if (type === 'camera') {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      setCameraPermission(status === 'granted');
-      return status === 'granted';
-    } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      setGalleryPermission(status === 'granted');
-      return status === 'granted';
-    }
-  };
-  
   // Request permissions if needed
   const requestPermissions = async (type: 'camera' | 'gallery') => {
     if (type === 'camera') {
@@ -296,25 +262,6 @@ export default function DiagnoseScreen() {
         bottomSheetRef={bottomSheetRef}
       />
       
-      {/* Toast */}
-      <AnalysisLoading visible={diagnoseMutation.isLoading} />
-      
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        visible={toast.visible}
-        onHide={hideToast}
-      />
-      
-      {/* Diagnosis Detail Sheet */}
-      <DiagnosisDetailSheet
-        diagnosis={selectedDiagnosis}
-        isVisible={!!selectedDiagnosis}
-        onClose={handleCloseDetailSheet}
-        bottomSheetRef={bottomSheetRef}
-      />
-      
-      {/* Toast */}
       <AnalysisLoading visible={diagnoseMutation.isLoading} />
       
       <Toast
@@ -415,24 +362,6 @@ const styles = StyleSheet.create({
   retryButton: {
     minWidth: 120,
   },
-  tipsCard: {
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
-    backgroundColor: '#FFF9E6',
-  },
-  tipsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  tipsTitle: {
-    ...Typography.h3,
-    color: Colors.textPrimary,
-    marginLeft: Spacing.sm,
-  },
-  tipsList: {
-    gap: Spacing.xs,
-  },
   tip: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
@@ -446,28 +375,5 @@ const styles = StyleSheet.create({
     ...Typography.h3,
     color: Colors.textPrimary,
     marginBottom: Spacing.md,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
-  },
-  loadingText: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    marginTop: Spacing.md,
-  },
-  errorCard: {
-    alignItems: 'center',
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
-  errorText: {
-    ...Typography.body,
-    color: Colors.error,
-    marginVertical: Spacing.md,
-  },
-  retryButton: {
-    minWidth: 120,
   },
 });

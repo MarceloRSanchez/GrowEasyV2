@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,8 +30,13 @@ export default function ReviewPlantScreen() {
   const confettiRef = React.useRef<any>(null);
 
   // Redirect if no plant selected
+  useEffect(() => {
+    if (!selectedPlant) {
+      router.replace('/add/search');
+    }
+  }, [selectedPlant]);
+
   if (!selectedPlant) {
-    router.replace('/add/search');
     return null;
   }
 
@@ -122,8 +127,8 @@ export default function ReviewPlantScreen() {
         <Button
           title="Add to garden"
           onPress={handleAddToGarden}
-          loading={createUserPlant.isLoading}
-          disabled={createUserPlant.isLoading}
+          loading={createUserPlant.isPending}
+          disabled={createUserPlant.isPending}
           size="large"
           style={styles.addButton}
         />
@@ -131,7 +136,7 @@ export default function ReviewPlantScreen() {
 
       {/* Loading Overlay */}
       <GlobalLoadingOverlay 
-        visible={createUserPlant.isLoading} 
+        visible={createUserPlant.isPending} 
         message="Adding to your garden..." 
       />
       

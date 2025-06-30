@@ -41,10 +41,10 @@ interface SlideData {
 }
 
 const slides: SlideData[] = [
-  {
+   {
     id: 1,
-    title: "Cultiva en Cualquier Espacio",
-    subtitle: "Transforma tu balcón, ventana o terraza en un oasis verde. Jardines urbanos para espacios pequeños.",
+    title: "Grow Anywhere",
+    subtitle: "Transform your balcony, window, or terrace into a green oasis. Urban gardens for small spaces.",
     image: "https://images.pexels.com/photos/6231753/pexels-photo-6231753.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     colors: OnboardingColors.slide1,
     primaryIcon: <Building2 size={48} color={OnboardingColors.slide1.primary} />,
@@ -52,8 +52,8 @@ const slides: SlideData[] = [
   },
   {
     id: 2,
-    title: "Cuidado Inteligente",
-    subtitle: "IA que analiza tus plantas, detecta problemas y te guía paso a paso para un cuidado perfecto.",
+    title: "Smart Care",
+    subtitle: "AI analyzes your plants, detects issues, and guides you step by step for perfect care.",
     image: "https://images.pexels.com/photos/7728082/pexels-photo-7728082.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     colors: OnboardingColors.slide2,
     primaryIcon: <Brain size={48} color={OnboardingColors.slide2.primary} />,
@@ -61,8 +61,8 @@ const slides: SlideData[] = [
   },
   {
     id: 3,
-    title: "Únete a la Comunidad",
-    subtitle: "Comparte experiencias, aprende de otros jardineros y celebra tus cosechas juntos.",
+    title: "Join the Community",
+    subtitle: "Share experiences, learn from other gardeners, and celebrate your harvests together.",
     image: "https://images.pexels.com/photos/7728384/pexels-photo-7728384.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     colors: OnboardingColors.slide3,
     primaryIcon: <Users size={48} color={OnboardingColors.slide3.primary} />,
@@ -70,13 +70,13 @@ const slides: SlideData[] = [
   },
   {
     id: 4,
-    title: "Sigue tu Progreso",
-    subtitle: "Monitorea el crecimiento, registra cuidados y celebra cada logro en tu jardín.",
+    title: "Track Your Progress",
+    subtitle: "Monitor growth, log plant care, and celebrate every milestone in your garden.",
     image: "https://images.pexels.com/photos/4505161/pexels-photo-4505161.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
     colors: OnboardingColors.slide4,
     primaryIcon: <TrendingUp size={48} color={OnboardingColors.slide4.primary} />,
     secondaryIcon: <Award size={32} color={OnboardingColors.slide4.secondary} />,
-  },
+  }
 ];
 
 export function WelcomeCarousel() {

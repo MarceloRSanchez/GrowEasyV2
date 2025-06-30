@@ -37,14 +37,16 @@ export function useDiagnosePlant() {
         const response = await fetch(uri);
         file = await response.blob();
       } else {
-        // For native, use the URI directly with FileSystem
+        // For native, read as base64 and convert to blob-like structure
         const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-        file = {
-          uri,
-          name: fileName,
-          type: 'image/jpeg',
-          base64,
-        };
+        // Convert base64 to Uint8Array for Supabase
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        file = byteArray;
       }
       
       const { data, error } = await supabase
@@ -63,14 +65,14 @@ export function useDiagnosePlant() {
       const { data: { publicUrl } } = supabase
         .storage.from('diagnoses')
         .getPublicUrl(fileName);
-      console.log("publicUrl: ", publicUrl);
+      
       // 2. Call n8n webhook for diagnosis
       const res = await fetch('https://n8n.lubee.com.ar/webhook/plant-diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl: publicUrl }),
       });
-      console.log("n8n response: ",res);
+      
       if (!res.ok) {
         throw new Error(`Diagnosis API error: ${res.status} ${res.statusText}`);
       }
@@ -82,20 +84,25 @@ export function useDiagnosePlant() {
       // Handle different response formats
       let json;
       try {
-        if (txt.includes('```json')) {
-          // If response is in markdown code block format
-          json = JSON.parse(txt.replace(/```json|```/g, '').trim());
-        } else if (txt.includes('content')) {
-          // If response is in { content: "..." } format
-          const parsed = JSON.parse(txt);
-          if (parsed.content) {
-            json = JSON.parse(parsed.content.trim());
-          } else {
-            throw new Error('Invalid response format');
+        // First parse the outer JSON
+        const outerParsed = JSON.parse(txt);
+        
+        if (outerParsed.content) {
+          // If response has content field, extract and parse it
+          let contentText = outerParsed.content;
+          
+          // Remove markdown code blocks if present
+          if (contentText.includes('```json')) {
+            contentText = contentText.replace(/```json\n?|\n?```/g, '').trim();
           }
+          
+          // Parse the inner JSON
+          json = JSON.parse(contentText);
+          console.log('✅ Parsed diagnosis JSON:', json);
         } else {
-          // Try direct parsing
-          json = JSON.parse(txt);
+          // Direct JSON response
+          json = outerParsed;
+          console.log('✅ Direct JSON response:', json);
         }
       } catch (parseError) {
         console.error('Error parsing diagnosis response:', parseError, 'Raw text:', txt);
@@ -123,6 +130,7 @@ export function useDiagnosePlant() {
         : 'No detailed description available';
       
       // 3. Insert diagnosis record in database
+      console.log('💾 Inserting to database:', { status, resume, description });
       const { data: row, error: dbErr } = await supabase
         .from('plant_diagnoses')
         .insert({

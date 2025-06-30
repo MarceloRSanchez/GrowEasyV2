@@ -22,14 +22,37 @@ import { DiagnosisEmptyState } from '@/components/diagnose/DiagnosisEmptyState';
 import { useDiagnosePlant, DiagnosisResult } from '@/hooks/useDiagnosePlant';
 import { useUserDiagnoses, DiagnosisItem } from '@/hooks/useUserDiagnoses';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { Toast } from '@/components/ui/Toast';
+import { AnalysisLoading } from '@/components/diagnose/AnalysisLoading';
+import { useToast } from '@/hooks/useToast';
+import { DiagnosisCard } from '@/components/diagnose/DiagnosisCard';
+import { DiagnosisDetailSheet } from '@/components/diagnose/DiagnosisDetailSheet';
+import { DiagnosisEmptyState } from '@/components/diagnose/DiagnosisEmptyState';
+import { useDiagnosePlant, DiagnosisResult } from '@/hooks/useDiagnosePlant';
+import { useUserDiagnoses, DiagnosisItem } from '@/hooks/useUserDiagnoses';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Camera, Image as ImageIcon, Scan, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Circle as XCircle, Lightbulb } from 'lucide-react-native';
 
 export default function DiagnoseScreen() {
   // State
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedDiagnosis, setSelectedDiagnosis] = useState<DiagnosisItem | null>(null);
+  const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
+  const [galleryPermission, setGalleryPermission] = useState<boolean | null>(null);
+  
+  // Refs
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  
+  // Hooks
+  const { toast, showToast, hideToast } = useToast();
+  const diagnoseMutation = useDiagnosePlant();
+  const { 
+    data: diagnoses, 
+    isLoading: diagnosesLoading, 
+    error: diagnosesError,
+    refetch: refetchDiagnoses
+  } = useUserDiagnoses();
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
   const [galleryPermission, setGalleryPermission] = useState<boolean | null>(null);
   
@@ -50,12 +73,20 @@ export default function DiagnoseScreen() {
   useEffect(() => {
     (async () => {
       const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
+      const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
       setCameraPermission(cameraStatus.status === 'granted');
-      
-      const galleryStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      setGalleryPermission(galleryStatus.status === 'granted');
-    })();
-  }, []);
+  // Request permissions if needed
+  const requestPermissions = async (type: 'camera' | 'gallery') => {
+    if (type === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      setCameraPermission(status === 'granted');
+      return status === 'granted';
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      setGalleryPermission(status === 'granted');
+      return status === 'granted';
+    }
+  };
   
   // Request permissions if needed
   const requestPermissions = async (type: 'camera' | 'gallery') => {
@@ -76,6 +107,35 @@ export default function DiagnoseScreen() {
       const granted = await requestPermissions('camera');
       if (!granted) {
         showToast('Camera permission is required to take photos', 'error');
+        return;
+      }
+    }
+    
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled) {
+        const selectedAsset = result.assets[0];
+        
+        // Resize image to reduce file size
+        const manipResult = await ImageManipulator.manipulateAsync(
+          selectedAsset.uri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        
+        setSelectedImage(manipResult.uri);
+        handleAnalyze(manipResult.uri);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      showToast('Failed to take photo. Please try again.', 'error');
+    }
         return;
       }
     }
@@ -142,8 +202,44 @@ export default function DiagnoseScreen() {
       console.error('Error selecting from gallery:', error);
       showToast('Failed to select image. Please try again.', 'error');
     }
+        return;
+      }
+    }
+    
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled) {
+        const selectedAsset = result.assets[0];
+        
+        // Resize image to reduce file size
+        const manipResult = await ImageManipulator.manipulateAsync(
+          selectedAsset.uri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        
+        setSelectedImage(manipResult.uri);
+        handleAnalyze(manipResult.uri);
+      }
+    } catch (error) {
+      console.error('Error selecting from gallery:', error);
+      showToast('Failed to select image. Please try again.', 'error');
+    }
   };
 
+  const handleAnalyze = async (uri: string) => {
+    try {
+      await diagnoseMutation.mutateAsync({ uri });
+      showToast('Plant diagnosis complete!', 'success');
+      setSelectedImage(null); // Reset selected image
+      refetchDiagnoses(); // Refresh diagnoses list
+    } catch (error) {
   const handleAnalyze = async (uri: string) => {
     try {
       await diagnoseMutation.mutateAsync({ uri });
@@ -165,32 +261,6 @@ export default function DiagnoseScreen() {
     setSelectedDiagnosis(null);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'healthy':
-        return <CheckCircle size={20} color={Colors.success} />;
-      case 'warning':
-        return <AlertTriangle size={20} color={Colors.warning} />;
-      case 'critical':
-        return <XCircle size={20} color={Colors.error} />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'healthy':
-        return Colors.success;
-      case 'warning':
-        return Colors.warning;
-      case 'critical':
-        return Colors.error;
-      default:
-        return Colors.textMuted;
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -206,7 +276,11 @@ export default function DiagnoseScreen() {
         <Card style={styles.cameraCard}>
           <View style={styles.cameraContainer}>
             {selectedImage ? (
-              <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+              <Image 
+                source={{ uri: selectedImage }} 
+                style={styles.selectedImage} 
+                accessibilityLabel="Selected plant image"
+              />
             ) : (
               <View style={styles.cameraPlaceholder}>
                 <Scan size={64} color={Colors.primary} />
@@ -225,6 +299,7 @@ export default function DiagnoseScreen() {
               variant="primary"
               style={styles.cameraButton}
               disabled={diagnoseMutation.isLoading}
+              disabled={diagnoseMutation.isLoading}
             />
             <Button
               title="From Gallery"
@@ -232,17 +307,9 @@ export default function DiagnoseScreen() {
               variant="outline"
               style={styles.cameraButton}
               disabled={diagnoseMutation.isLoading}
+              disabled={diagnoseMutation.isLoading}
             />
           </View>
-        </Card>
-
-        {/* AI Tips */}
-        <Card style={styles.tipsCard}>
-          <View style={styles.tipsHeader}>
-            <Lightbulb size={24} color={Colors.warning} />
-            <Text style={styles.tipsTitle}>Photography Tips</Text>
-          </View>
-          <View style={styles.tipsList}>
             <Text style={styles.tip}>• Use natural lighting when possible</Text>
             <Text style={styles.tip}>• Focus on the affected leaves or areas</Text>
             <Text style={styles.tip}>• Keep the camera steady and close</Text>
@@ -282,8 +349,22 @@ export default function DiagnoseScreen() {
           ) : (
             <DiagnosisEmptyState onTakePhoto={handleTakePhoto} />
           )}
-        </View>
-      </ScrollView>
+      <DiagnosisDetailSheet
+        diagnosis={selectedDiagnosis}
+        isVisible={!!selectedDiagnosis}
+        onClose={handleCloseDetailSheet}
+        bottomSheetRef={bottomSheetRef}
+      />
+      
+      {/* Toast */}
+      <AnalysisLoading visible={diagnoseMutation.isLoading} />
+      
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onHide={hideToast}
+      />
       
       {/* Diagnosis Detail Sheet */}
       <DiagnosisDetailSheet
@@ -370,6 +451,29 @@ const styles = StyleSheet.create({
   },
   analyzeButton: {
     width: '100%',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  loadingText: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    marginTop: Spacing.md,
+  },
+  errorCard: {
+    alignItems: 'center',
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  errorText: {
+    ...Typography.body,
+    color: Colors.error,
+    marginVertical: Spacing.md,
+  },
+  retryButton: {
+    minWidth: 120,
   },
   tipsCard: {
     marginHorizontal: Spacing.md,

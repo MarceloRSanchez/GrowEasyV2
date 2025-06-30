@@ -70,7 +70,7 @@ export function useDiagnosePlant() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl: publicUrl }),
       });
-      console.log("Supabase response: ",res);
+      console.log("n8n response: ",res);
       if (!res.ok) {
         throw new Error(`Diagnosis API error: ${res.status} ${res.statusText}`);
       }

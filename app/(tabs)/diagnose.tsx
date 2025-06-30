@@ -13,9 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Toast as ToastComponent } from '@/components/ui/Toast';
 import { AnalysisLoading } from '@/components/diagnose/AnalysisLoading';
 import { useToast } from '@/hooks/useToast';
+import { Toast } from '@/components/ui/Toast';
 import { DiagnosisCard } from '@/components/diagnose/DiagnosisCard';
 import { DiagnosisDetailSheet } from '@/components/diagnose/DiagnosisDetailSheet';
 import { DiagnosisEmptyState } from '@/components/diagnose/DiagnosisEmptyState';
@@ -264,7 +264,7 @@ export default function DiagnoseScreen() {
       
       <AnalysisLoading visible={diagnoseMutation.isPending} />
       
-      <ToastComponent
+      <Toast
         message={toast.message}
         type={toast.type}
         visible={toast.visible}

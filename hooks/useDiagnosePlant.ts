@@ -77,11 +77,50 @@ export function useDiagnosePlant() {
       
       const txt = await res.text();
       // Strip markdown code-block
-      const json = JSON.parse(txt.replace(/```json|```/g, '').trim());
+      console.log("Raw response from n8n:", txt);
+      
+      // Handle different response formats
+      let json;
+      try {
+        if (txt.includes('```json')) {
+          // If response is in markdown code block format
+          json = JSON.parse(txt.replace(/```json|```/g, '').trim());
+        } else if (txt.includes('content')) {
+          // If response is in { content: "..." } format
+          const parsed = JSON.parse(txt);
+          if (parsed.content) {
+            json = JSON.parse(parsed.content.trim());
+          } else {
+            throw new Error('Invalid response format');
+          }
+        } else {
+          // Try direct parsing
+          json = JSON.parse(txt);
+        }
+      } catch (parseError) {
+        console.error('Error parsing diagnosis response:', parseError, 'Raw text:', txt);
+        // Provide fallback values if parsing fails
+        json = {
+          status: 'warning',
+          resume: 'Unable to analyze image',
+          description: 'The system was unable to properly analyze this image. Please try again with a clearer photo in better lighting.'
+        };
+      }
       
       // Validate and ensure we have a valid status
       const validStatuses = ['healthy', 'warning', 'critical'];
-      const status = validStatuses.includes(json.status) ? json.status : 'warning';
+      const status = json && json.status && validStatuses.includes(json.status) 
+        ? json.status 
+        : 'warning';
+      
+      // Ensure we have valid values for all required fields
+      const resume = json && json.resume 
+        ? json.resume 
+        : 'No summary available';
+      
+      const description = json && json.description 
+        ? json.description 
+        : 'No detailed description available';
       
       // 3. Insert diagnosis record in database
       const { data: row, error: dbErr } = await supabase
@@ -89,9 +128,9 @@ export function useDiagnosePlant() {
         .insert({
           user_id: user.id,
           image_url: publicUrl,
-          status: status,
-          resume: json.resume,
-          description: json.description,
+          status,
+          resume,
+          description,
         })
         .select()
         .single();
